@@ -7,7 +7,7 @@ Passwords and sessions are handled only by `/functions/api/[[path]].js`. The bro
 
 ## Local start
 1. Install Node 20+ and `npm install`.
-2. Create a Supabase project. In SQL Editor run `supabase/migrations/001_ems_schema.sql`, `supabase/migrations/002_invoice_rpc.sql`, `supabase/migrations/003_platform_owner.sql`, `supabase/migrations/004_license_plans_and_capacity.sql`, `supabase/migrations/005_shop_id.sql`, `supabase/migrations/006_license_plan_flexible_values.sql`, `supabase/migrations/007_free_license_payment_method.sql`, `supabase/migrations/008_administrator_id.sql`, then `supabase/migrations/009_business_short_ids.sql` (in that exact order).
+2. Create a Supabase project. In SQL Editor run `supabase/migrations/001_ems_schema.sql`, `supabase/migrations/002_invoice_rpc.sql`, `supabase/migrations/003_platform_owner.sql`, `supabase/migrations/004_license_plans_and_capacity.sql`, `supabase/migrations/005_shop_id.sql`, `supabase/migrations/006_license_plan_flexible_values.sql`, `supabase/migrations/007_free_license_payment_method.sql`, `supabase/migrations/008_administrator_id.sql`, `supabase/migrations/009_business_short_ids.sql`, then `supabase/migrations/010_invoice_number_preview.sql`, `supabase/migrations/011_safe_invoice_delete.sql`, `supabase/migrations/012_due_recovery.sql`, `supabase/migrations/013_invoice_verification_qr.sql`, `supabase/migrations/014_custom_invoice_party.sql`, then `supabase/migrations/015_connectx_v1.sql` (in that exact order).
 3. Copy `.dev.vars.example` to `.dev.vars`, insert the three real secrets, and generate `SESSION_SECRET` with `openssl rand -base64 48`.
 4. Run `npm run dev`. Register the first administrator at `/`.
 
