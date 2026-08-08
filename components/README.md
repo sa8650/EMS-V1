@@ -1,0 +1,1 @@
+Reusable UI primitives are currently consolidated in `assets/js/app.js` to avoid a bundler dependency for Cloudflare Pages. Split modal/table/navigation functions into this directory when introducing a build step.
