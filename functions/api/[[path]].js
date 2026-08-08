@@ -21,7 +21,7 @@ const perms={supplier:'supplier',customer:'customer',inventory:'inventory',expen
 const PERMISSION_SECTIONS=['dashboard','supplier','customer','inventory','purchase','sales','expense','due_recover','staff','report','settings','connectx'];
 const PERMISSION_ACTIONS=['view','add','edit','delete'];
 function normalizePermissions(input){let output={};for(const section of PERMISSION_SECTIONS){let values=Array.isArray(input?.[section])?input[section]:[];output[section]=PERMISSION_ACTIONS.filter(action=>values.includes(action));}return output}
-function allowed(s,section,verb){if(s.role==='admin')return true;let permissions=s.permissions||{},configured=Object.values(permissions).some(v=>Array.isArray(v)&&v.length);if(!configured)return true;return (permissions[section]||[]).includes(verb)}
+function allowed(s,section,verb){if(s.role==='admin'||s.adminAccess)return true;let permissions=s.permissions||{},configured=Object.values(permissions).some(v=>Array.isArray(v)&&v.length);if(!configured)return true;let actions=permissions[section]||[];return actions.includes(verb)||(section==='connectx'&&verb==='send'&&actions.includes('add'))}
 function publicStaff(r){delete r.password_hash;return r}
 export async function onRequest(context){const {request,env,params}=context, path=(params.path||[]).join('/'), method=request.method;try{
  {let missing=['SUPABASE_URL','SUPABASE_SERVICE_ROLE_KEY','SESSION_SECRET'].filter(k=>!env[k]);if(missing.length)return fail('Server configuration is incomplete: missing '+missing.join(', ')+'.',500);}
