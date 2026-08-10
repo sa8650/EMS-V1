@@ -118,3 +118,295 @@ button:disabled{opacity:.42;cursor:not-allowed!important;filter:grayscale(.3)}
 [data-theme="dark"] .zudoSide{background:#111827;border-color:#334155}[data-theme="dark"] .zudoBrand{color:#a5b4fc}[data-theme="dark"] .zudoBrand small{color:#94a3b8}[data-theme="dark"] .zudoConv{color:#cbd5e1}[data-theme="dark"] .zudoConv:hover,[data-theme="dark"] .zudoConv.on{background:#312e81;color:#c7d2fe}[data-theme="dark"] .zudoMain header{border-color:#334155}[data-theme="dark"] .zudoMain header span{color:#a8b7ca}[data-theme="dark"] .zudoBadge{background:#312e81;color:#c7d2fe!important}[data-theme="dark"] .zudoUsage{color:#a8b7ca!important}[data-theme="dark"] .zudoUsage.limitReached{color:#fda4af!important}[data-theme="dark"] .zudoWelcome{color:#a8b7ca}[data-theme="dark"] .zudoWelcome b{color:#f8fafc}[data-theme="dark"] .zudoPrompt{background:#1e293b;color:#c7d2fe;border-color:#4f46e5}[data-theme="dark"] .zudoMsg>span{color:#a8b7ca}[data-theme="dark"] .zudoMsg.assistant>div{background:#1e293b;border-color:#334155;color:#e2e8f0}[data-theme="dark"] .zudoMsg.thinking>div{color:#a8b7ca}[data-theme="dark"] .zudoComposer{background:#111827;border-color:#334155}[data-theme="dark"] .zudoTopButton{background:#312e81;color:#e0e7ff;box-shadow:0 2px 8px #0006}[data-theme="dark"] .zudoTopButton:hover{background:#4338ca}
 [data-theme="dark"] .connectx{background:#172033;border-color:#334155;color:#e2e8f0}[data-theme="dark"] .connectxmain{background:#172033;color:#e2e8f0}[data-theme="dark"] .connectxnav{background:#111827;border-color:#334155}[data-theme="dark"] .connectxbrand{color:#a5b4fc}[data-theme="dark"] .connectxbrand small{color:#94a3b8}[data-theme="dark"] .connectxnav button{color:#cbd5e1}[data-theme="dark"] .connectxnav button:hover{background:#1e293b;color:#c7d2fe}[data-theme="dark"] .connectxnav button.on{background:#312e81;color:#c7d2fe}[data-theme="dark"] .cxhead{border-color:#334155}[data-theme="dark"] .cxhead h2{color:#f8fafc}[data-theme="dark"] .cxhead span,[data-theme="dark"] .cxEmailMeta{color:#a8b7ca}[data-theme="dark"] .cxrecipient{border-color:#334155}[data-theme="dark"] .cxcontact{background:#1e293b;border-color:#334155;color:#a8b7ca}[data-theme="dark"] .cxcontact b{color:#f8fafc}[data-theme="dark"] .cxsearch input{background:#1e293b;color:#e2e8f0;border-color:#475569}[data-theme="dark"] .cxEmailView{background:#172033;color:#e2e8f0}[data-theme="dark"] .cxEmailFrame{background:#0f172a}[data-theme="dark"] .cxPlanEntitlement{background:#111827;border-color:#334155}[data-theme="dark"] .cxerror{color:#fda4af}[data-theme="dark"] .cxTestSuccess{color:#86efac}[data-theme="dark"] .cxTestError{color:#fda4af}
 @media(max-width:700px){.zudoHeaderActions{gap:6px}.zudoUsage{font-size:10px!important;max-width:190px;overflow:hidden;text-overflow:ellipsis}.shopTopActions{gap:7px}.zudoTopButton{width:32px;height:32px}}
+/* ============================================================
+   MODERN LIQUID GLASS MENU
+   Minimal roundness · tight spacing · glass effect · dark mode
+   ============================================================ */
+
+/* ---- Sidebar base: glass canvas ---- */
+.shell .sidebar {
+    background: rgba(255, 255, 255, 0.55) !important;
+    backdrop-filter: blur(18px) saturate(160%);
+    -webkit-backdrop-filter: blur(18px) saturate(160%);
+    border-right: 1px solid rgba(255, 255, 255, 0.50);
+    box-shadow: 4px 0 28px rgba(15, 23, 42, 0.06);
+}
+
+/* ---- Menu container: tight, clean ---- */
+.shell .nav {
+    display: flex;
+    flex-direction: column;
+    gap: 3px !important;          /* less gap between items */
+    padding: 10px 10px 14px !important;
+    margin: 0;
+}
+
+/* ---- Each menu button: subtle, glassy, low roundness ---- */
+.shell .nav button,
+.adminSidebar .nav button,
+.ownerSidebar .nav button {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    padding: 10px 14px !important;
+    border-radius: 10px !important;   /* minimal roundness */
+    border: 1px solid transparent;
+    background: rgba(255, 255, 255, 0.18);
+    color: #1e293b;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    transition: all 0.22s ease;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    line-height: 1.3;
+    text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* ---- Hover: liquid glass lift ---- */
+.shell .nav button:hover,
+.adminSidebar .nav button:hover,
+.ownerSidebar .nav button:hover {
+    background: rgba(255, 255, 255, 0.55);
+    border-color: rgba(255, 255, 255, 0.70);
+    box-shadow: 0 6px 18px rgba(79, 70, 229, 0.10), inset 0 1px 0 rgba(255, 255, 255, 0.85);
+    transform: translateY(-1px);
+    color: #0f172a;
+}
+
+/* ---- Active: deep glass with colour accent ---- */
+.shell .nav button.active,
+.adminSidebar .nav button.active,
+.ownerSidebar .nav button.active {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.22), rgba(79, 70, 229, 0.14));
+    border-color: rgba(99, 102, 241, 0.35);
+    box-shadow: 0 8px 22px rgba(79, 70, 229, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.80);
+    color: #4f46e5;
+    font-weight: 700;
+}
+
+/* ---- Menu icons: crisp, modern, with subtle glass backing ---- */
+.menuicon {
+    display: inline-grid;
+    place-items: center;
+    width: 30px;
+    height: 30px;
+    flex-shrink: 0;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.50);
+    color: #4f46e5 !important;
+    font-size: 16px;
+    font-weight: 700;
+    font-family: system-ui, -apple-system, sans-serif;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.80), 0 2px 6px rgba(79, 70, 229, 0.06);
+    transition: all 0.22s ease;
+}
+
+.shell .nav button:hover .menuicon,
+.adminSidebar .nav button:hover .menuicon,
+.ownerSidebar .nav button:hover .menuicon {
+    background: rgba(255, 255, 255, 0.80);
+    box-shadow: inset 0 1px 0 #fff, 0 4px 12px rgba(79, 70, 229, 0.14);
+    transform: scale(1.04);
+}
+
+.shell .nav button.active .menuicon,
+.adminSidebar .nav button.active .menuicon,
+.ownerSidebar .nav button.active .menuicon {
+    background: linear-gradient(135deg, #6366f1, #4f46e5);
+    color: #fff !important;
+    box-shadow: 0 4px 14px rgba(79, 70, 229, 0.30);
+}
+
+/* ---- Sidebar bottom (logout etc.) ---- */
+.sidebottom {
+    border-top: 1px solid rgba(255, 255, 255, 0.30);
+    padding: 10px 10px 14px !important;
+    display: flex;
+    flex-direction: column;
+    gap: 3px !important;
+    margin-top: auto;
+}
+
+.sidebottom button {
+    border-radius: 10px !important;
+    padding: 10px 14px !important;
+    background: rgba(255, 255, 255, 0.12);
+    border: 1px solid transparent;
+    color: #1e293b;
+    font-weight: 600;
+    transition: all 0.22s ease;
+    text-align: left;
+    width: 100%;
+}
+
+.sidebottom button:hover {
+    background: rgba(255, 255, 255, 0.45);
+    border-color: rgba(255, 255, 255, 0.50);
+    transform: translateY(-1px);
+}
+
+.sidebottom .logoutmenu {
+    background: rgba(220, 38, 38, 0.08) !important;
+    color: #b91c1c !important;
+}
+
+.sidebottom .logoutmenu:hover {
+    background: rgba(220, 38, 38, 0.18) !important;
+    border-color: rgba(220, 38, 38, 0.20);
+}
+
+/* ---- Dark Mode: glass deepens, colours shift ---- */
+[data-theme="dark"] .shell .sidebar {
+    background: rgba(15, 23, 42, 0.78) !important;
+    backdrop-filter: blur(22px) saturate(140%);
+    -webkit-backdrop-filter: blur(22px) saturate(140%);
+    border-right: 1px solid rgba(71, 85, 105, 0.30);
+    box-shadow: 4px 0 32px rgba(0, 0, 0, 0.30);
+}
+
+[data-theme="dark"] .shell .nav button,
+[data-theme="dark"] .adminSidebar .nav button,
+[data-theme="dark"] .ownerSidebar .nav button {
+    background: rgba(30, 41, 59, 0.30);
+    color: #cbd5e1;
+    border-color: transparent;
+}
+
+[data-theme="dark"] .shell .nav button:hover,
+[data-theme="dark"] .adminSidebar .nav button:hover,
+[data-theme="dark"] .ownerSidebar .nav button:hover {
+    background: rgba(51, 65, 85, 0.55);
+    border-color: rgba(148, 163, 184, 0.25);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    color: #f1f5f9;
+}
+
+[data-theme="dark"] .shell .nav button.active,
+[data-theme="dark"] .adminSidebar .nav button.active,
+[data-theme="dark"] .ownerSidebar .nav button.active {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.28), rgba(79, 70, 229, 0.18));
+    border-color: rgba(99, 102, 241, 0.35);
+    box-shadow: 0 8px 26px rgba(79, 70, 229, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    color: #a5b4fc;
+}
+
+[data-theme="dark"] .menuicon {
+    background: rgba(30, 41, 59, 0.50);
+    color: #818cf8 !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 2px 8px rgba(0, 0, 0, 0.20);
+}
+
+[data-theme="dark"] .shell .nav button:hover .menuicon,
+[data-theme="dark"] .adminSidebar .nav button:hover .menuicon,
+[data-theme="dark"] .ownerSidebar .nav button:hover .menuicon {
+    background: rgba(51, 65, 85, 0.70);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 4px 14px rgba(0, 0, 0, 0.25);
+    color: #a5b4fc !important;
+}
+
+[data-theme="dark"] .shell .nav button.active .menuicon,
+[data-theme="dark"] .adminSidebar .nav button.active .menuicon,
+[data-theme="dark"] .ownerSidebar .nav button.active .menuicon {
+    background: linear-gradient(135deg, #6366f1, #4f46e5);
+    color: #fff !important;
+    box-shadow: 0 4px 16px rgba(79, 70, 229, 0.35);
+}
+
+[data-theme="dark"] .sidebottom {
+    border-top: 1px solid rgba(71, 85, 105, 0.25);
+}
+
+[data-theme="dark"] .sidebottom button {
+    background: rgba(30, 41, 59, 0.25);
+    color: #cbd5e1;
+}
+
+[data-theme="dark"] .sidebottom button:hover {
+    background: rgba(51, 65, 85, 0.45);
+    border-color: rgba(148, 163, 184, 0.20);
+    color: #f1f5f9;
+}
+
+[data-theme="dark"] .sidebottom .logoutmenu {
+    background: rgba(220, 38, 38, 0.12) !important;
+    color: #fca5a5 !important;
+}
+
+[data-theme="dark"] .sidebottom .logoutmenu:hover {
+    background: rgba(220, 38, 38, 0.22) !important;
+    border-color: rgba(220, 38, 38, 0.25);
+}
+
+/* ---- Responsive: horizontal scroll on mobile ---- */
+@media (max-width: 800px) {
+    .shell .nav {
+        flex-direction: row;
+        overflow-x: auto;
+        overflow-y: hidden;
+        gap: 4px !important;
+        padding: 8px 12px !important;
+        scrollbar-width: none;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .shell .nav::-webkit-scrollbar {
+        display: none;
+    }
+
+    .shell .nav button,
+    .adminSidebar .nav button,
+    .ownerSidebar .nav button {
+        flex: 0 0 auto;
+        width: auto;
+        padding: 8px 14px !important;
+        border-radius: 10px !important;
+        font-size: 12px;
+        white-space: nowrap;
+    }
+
+    .menuicon {
+        width: 26px;
+        height: 26px;
+        font-size: 13px;
+    }
+
+    .sidebottom {
+        flex-direction: row;
+        overflow-x: auto;
+        padding: 8px 12px !important;
+        gap: 4px !important;
+        border-top: 0;
+    }
+
+    .sidebottom button {
+        flex: 0 0 auto;
+        width: auto;
+        padding: 8px 14px !important;
+        font-size: 12px;
+        white-space: nowrap;
+    }
+
+    [data-theme="dark"] .shell .sidebar {
+        border-right: 0;
+        border-bottom: 1px solid rgba(71, 85, 105, 0.25);
+    }
+}
+
+/* ---- Admin / Owner sidebar overrides (keep consistent) ---- */
+.adminSidebar .nav button,
+.ownerSidebar .nav button {
+    width: 100%;
+}
+
+@media (max-width: 800px) {
+    .adminSidebar .nav button,
+    .ownerSidebar .nav button {
+        width: auto;
+    }
+}
