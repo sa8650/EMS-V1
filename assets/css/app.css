@@ -409,4 +409,6 @@ button:disabled{opacity:.42;cursor:not-allowed!important;filter:grayscale(.3)}
     .ownerSidebar .nav button {
         width: auto;
     }
-}
+}/* 10% compact dashboard header and brand area */
+@media(min-width:801px){.shell{grid-template-rows:70px minmax(calc(100vh - 70px),auto)}.shell .sidebar{grid-template-rows:70px 1fr auto}.shell .logo{height:70px;min-height:70px;padding:14px 13px}.shell .top{height:70px;padding:0 27px}.brandTitle{font-size:14.5px}.sideShopName{font-size:10px;margin-top:5px}.shopHeader{font-size:15.3px}.headerProfile{width:27px;height:27px;font-size:11px;margin-right:8px}.themeSwitch{transform:scale(.9);transform-origin:right}.zudoTopButton{width:31px;height:31px;font-size:17px}.top .status{font-size:10px!important;padding:5px 9px!important}.top button.secondary{font-size:11px;padding:7px 11px!important}}
+@media(max-width:800px){.shell .logo{min-height:53px;height:53px;padding:10px 14px}.shell .top{height:50px;padding:0 13px}.brandTitle{font-size:14px}.sideShopName{font-size:10px}.shopHeader{font-size:13px}.headerProfile{width:27px;height:27px;font-size:10px}.themeSwitch{transform:scale(.82);transform-origin:right}.zudoTopButton{width:29px;height:29px;font-size:16px}}
