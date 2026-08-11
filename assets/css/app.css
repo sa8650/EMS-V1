@@ -1586,3 +1586,172 @@ tbody tr:hover,tbody tr:hover td{background:#f3f6fa!important}
 
 @media(max-width:1080px){.cards{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
 @media(max-width:760px){.cards{grid-template-columns:1fr 1fr!important}}
+
+
+/* =====================================================================
+   HARD LOCK — solid header, no cream/paper, no Zudo blue list
+   Highest-priority selectors. Keep last.
+   ===================================================================== */
+:root{
+  --classic-cream:#f3f5f8;
+  --classic-paper:#ffffff;
+  --rust-cream:#f3f5f8;
+  --rust-paper:#ffffff;
+  --theme-main-bg:#f3f5f8;
+  --theme-surface:#ffffff;
+  --theme-elevated:#ffffff;
+  --theme-header:#1b2a41;
+  --theme-primary:#1d4ed8;
+  --theme-secondary:#1b2a41;
+  --glass-tint:#ffffff;
+  --glass-opacity:0;
+  --glass-blur:0;
+  --glass-border-opacity:0;
+}
+
+html body,
+html body .shell,
+html body .main,
+html body .page,
+html body .website,
+html body .publicPage,
+html body .landing{
+  background:#f3f5f8!important;
+  background-image:none!important;
+}
+
+html body .card,
+html body .panel,
+html body .financialCard,
+html body .dashboard-glass,
+html body .activitypanel,
+html body .connectx,
+html body .zudo,
+html body .dueleft,
+html body .dueright,
+html body .storeDetails,
+html body .licensecard,
+html body .price,
+html body .modalbox,
+html body .authmodal,
+html body .tablewrap,
+html body .featuregrid article,
+html body .blogGrid article,
+html body .articlePage,
+html body .contactForm{
+  background:#ffffff!important;
+  background-image:none!important;
+  backdrop-filter:none!important;
+  -webkit-backdrop-filter:none!important;
+}
+
+/* Header: one solid navy. Kill glass, grain, gradient, ::after sheen */
+html body .shell .top,
+html body .shell header.top,
+html body header.top,
+html body .shell .logo,
+html body .adminSidebar .logo,
+html body .ownerSidebar .logo{
+  background:#1b2a41!important;
+  background-color:#1b2a41!important;
+  background-image:none!important;
+  background-blend-mode:normal!important;
+  backdrop-filter:none!important;
+  -webkit-backdrop-filter:none!important;
+  box-shadow:none!important;
+  border:0!important;
+  color:#ffffff!important;
+}
+html body .shell .top:after,
+html body .shell .top:before,
+html body header.top:after,
+html body header.top:before{
+  display:none!important;
+  content:none!important;
+  background:none!important;
+  opacity:0!important;
+}
+@media(min-width:801px){
+  html body .shell .top,
+  html body .shell header.top,
+  html body .shell .logo{
+    background:#1b2a41!important;
+    background-image:none!important;
+    backdrop-filter:none!important;
+    -webkit-backdrop-filter:none!important;
+  }
+}
+
+/* Zudo history: no blue / indigo wash */
+html body .zudoConv,
+html body .zudoConv.on,
+html body .zudoConv:hover,
+html body .zudoConvRow,
+html body .zudoConvRow.on,
+html body .zudoConvRow.on .zudoConv,
+html body .zudoSide .zudoConv,
+html body .zudoSide .zudoConv.on{
+  background:transparent!important;
+  background-image:none!important;
+  color:#1b2430!important;
+  box-shadow:none!important;
+  border-radius:0!important;
+}
+html body .zudoConvRow{
+  border-bottom:1px solid #e5e9ef!important;
+  border-left:0!important;
+}
+html body .zudoConvRow.on{
+  background:#f3f5f8!important;
+  border-left:3px solid #1b2a41!important;
+}
+html body .zudoConv:hover{
+  background:#f3f5f8!important;
+}
+html body .zudoBrand,
+html body .zudoBadge{
+  color:#1b2430!important;
+  background:transparent!important;
+}
+html body .zudoBadge{
+  background:#e8edf3!important;
+  color:#1b2a41!important;
+}
+
+/* Dark gray header + surfaces */
+[data-theme="dark"] html body,
+[data-theme="dark"] html body .shell,
+[data-theme="dark"] html body .main,
+[data-theme="dark"] html body .page{
+  background:#2f333a!important;
+}
+[data-theme="dark"] html body .shell .top,
+[data-theme="dark"] html body .shell header.top,
+[data-theme="dark"] html body .shell .logo{
+  background:#353a42!important;
+  background-image:none!important;
+  backdrop-filter:none!important;
+  -webkit-backdrop-filter:none!important;
+}
+[data-theme="dark"] html body .card,
+[data-theme="dark"] html body .panel,
+[data-theme="dark"] html body .financialCard,
+[data-theme="dark"] html body .dashboard-glass,
+[data-theme="dark"] html body .tablewrap,
+[data-theme="dark"] html body table,
+[data-theme="dark"] html body .zudo,
+[data-theme="dark"] html body .connectx{
+  background:#3a3f47!important;
+  background-image:none!important;
+}
+[data-theme="dark"] html body .zudoConv,
+[data-theme="dark"] html body .zudoConv.on,
+[data-theme="dark"] html body .zudoConvRow.on .zudoConv{
+  background:transparent!important;
+  color:#e8eaed!important;
+}
+[data-theme="dark"] html body .zudoConvRow.on,
+[data-theme="dark"] html body .zudoConv:hover{
+  background:#434952!important;
+  color:#e8eaed!important;
+}
