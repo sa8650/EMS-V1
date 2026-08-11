@@ -1294,3 +1294,295 @@ tbody tr:hover,tbody tr:hover td{background:#f3f6fa!important}
 [data-theme="dark"] td{color:#e5e9ef!important;border-color:#2a3648!important}
 [data-theme="dark"] tbody tr:hover,[data-theme="dark"] tbody tr:hover td{background:#243656!important}
 [data-theme="dark"] h1,[data-theme="dark"] h2,[data-theme="dark"] h3{color:#f3f5f8!important}
+
+
+/* =====================================================================
+   EMS V1 — DASHBOARD POLISH + DARK GRAY (final lock)
+   ===================================================================== */
+
+/* 5. Shop KPI cards match owner overview cards */
+.cards{grid-template-columns:repeat(4,minmax(0,1fr))!important}
+.cards .card,
+.sidebar:not(.adminSidebar):not(.ownerSidebar) ~ .main .cards .card,
+.sidebar:not(.adminSidebar):not(.ownerSidebar) ~ .main .cards .dashboard-glass{
+  padding:18px!important;
+  padding-left:18px!important;
+  border-radius:10px!important;
+  border:1px solid #d8dee6!important;
+  border-top:1px solid #d8dee6!important;
+  border-left:1px solid #d8dee6!important;
+  background:#fff!important;
+  box-shadow:none!important;
+  backdrop-filter:none!important;
+  overflow:visible!important;
+}
+.cards .card:nth-child(1),
+.cards .card:nth-child(2),
+.cards .card:nth-child(3),
+.cards .card:nth-child(4){border-left:1px solid #d8dee6!important}
+.kpiicon{display:none!important}
+.cards .card small{display:block;font-size:12px;font-weight:650;letter-spacing:.02em;text-transform:none;color:#5d6b7a!important}
+.cards .card strong{display:block;font-size:24px;margin-top:8px;font-family:inherit!important;color:#1b2430!important}
+
+/* 7. Solid header — no gradient, all dashboards */
+.shell .top,.shell .logo,.ownerSidebar .logo,.adminSidebar .logo{
+  background:#1b2a41!important;
+  background-image:none!important;
+  backdrop-filter:none!important;
+}
+
+/* 2. Owner + admin nav match shop nav */
+.adminSidebar .nav:before,.ownerSidebar .nav:before{display:none!important}
+.adminSidebar .menuicon,.ownerSidebar .menuicon{
+  display:inline-grid!important;
+  place-items:center;
+  width:28px;height:28px;font-size:14px;
+  background:#243656!important;color:#93c5fd!important;
+}
+.adminSidebar .nav button,.ownerSidebar .nav button,
+.sidebar:not(.adminSidebar):not(.ownerSidebar) .nav button{
+  display:flex!important;align-items:center!important;gap:11px!important;
+  width:100%!important;min-height:40px!important;height:auto!important;
+  padding:9px 12px!important;border-radius:8px!important;
+}
+.adminSidebar .nav button.active .menuicon,
+.ownerSidebar .nav button.active .menuicon,
+.shell .nav button.active .menuicon{background:transparent!important;color:#fff!important}
+
+/* 8. Shop header icons + switch same size and aligned */
+.shopTopActions{display:flex!important;align-items:center!important;gap:12px!important;height:40px}
+.topUser{display:flex!important;align-items:center!important;gap:8px!important;line-height:1;height:28px}
+.headerProfile,.top .headerProfile{
+  width:28px!important;height:28px!important;margin:0!important;
+  font-size:12px!important;flex:0 0 28px
+}
+.zudoTopButton,.top .zudoTopButton{
+  width:28px!important;height:28px!important;min-height:28px!important;
+  padding:0!important;border-radius:50%!important;font-size:14px!important;
+  box-shadow:none!important;flex:0 0 28px
+}
+.themeSwitch,.top .themeSwitch{
+  width:56px!important;height:28px!important;min-height:28px!important;
+  transform:none!important;flex:0 0 56px;margin:0
+}
+.themeSwitch i{width:22px!important;height:22px!important;left:3px!important}
+[data-theme="dark"] .themeSwitch i{transform:translateX(28px)!important}
+.themeSwitch b{font-size:11px!important}
+
+/* 3. Zudo history = table rows, no blue chip */
+.zudoConvRow{
+  display:flex;align-items:center;
+  background:transparent!important;
+  border-bottom:1px solid #e5e9ef!important;
+  border-radius:0!important;padding:0!important
+}
+.zudoConvRow.on,.zudoConvRow.on .zudoConv,.zudoConv.on{
+  background:transparent!important;color:#1b2430!important;
+  box-shadow:none!important;border-radius:0!important
+}
+.zudoConv{
+  background:transparent!important;color:#1b2430!important;
+  border-radius:0!important;padding:10px 8px!important;
+  font-weight:600;box-shadow:none!important
+}
+.zudoConv:hover{background:#f3f5f8!important;color:#1b2430!important}
+.zudoConvRow.on{border-left:3px solid #1d4ed8;background:#f3f5f8!important}
+.zudoMore{background:transparent!important;box-shadow:none!important;color:#5d6b7a!important}
+
+/* Financial chart + activity stay solid cards */
+.financialCard,.activitypanel,.dashboard-glass{
+  background:#fff!important;background-image:none!important;
+  border:1px solid #d8dee6!important;backdrop-filter:none!important
+}
+
+/* 6+1+4  Dark gray (not black) — surfaces */
+[data-theme="dark"]{
+  --bg:#2f333a;--text:#e8eaed;--muted:#b4bac2;--line:#4a5058;
+  --theme-main-bg:#2f333a;--theme-surface:#3a3f47;--theme-text:#e8eaed;
+  --theme-border:#4a5058;--theme-input:#353a42
+}
+[data-theme="dark"] html,
+[data-theme="dark"] body,
+[data-theme="dark"] .shell,
+[data-theme="dark"] .main,
+[data-theme="dark"] .page,
+[data-theme="dark"] .website,
+[data-theme="dark"] .publicPage,
+[data-theme="dark"] .landing,
+[data-theme="dark"] .verifyPage{
+  background:#2f333a!important;color:#e8eaed!important
+}
+[data-theme="dark"] .shell .sidebar,
+[data-theme="dark"] .sidebar,
+[data-theme="dark"] .adminSidebar,
+[data-theme="dark"] .ownerSidebar{
+  background:#353a42!important;color:#d5d9de!important
+}
+[data-theme="dark"] .shell .top,
+[data-theme="dark"] .shell .logo,
+[data-theme="dark"] .ownerSidebar .logo{
+  background:#353a42!important;background-image:none!important;color:#e8eaed!important
+}
+[data-theme="dark"] .topBrand b,
+[data-theme="dark"] .topBrand small,
+[data-theme="dark"] .topUser,
+[data-theme="dark"] .shopHeader,
+[data-theme="dark"] .brandTitle,
+[data-theme="dark"] .sideShopName{color:#e8eaed!important}
+[data-theme="dark"] .shell .nav button,
+[data-theme="dark"] .adminSidebar .nav button,
+[data-theme="dark"] .ownerSidebar .nav button,
+[data-theme="dark"] .sidebottom button{color:#d5d9de!important}
+[data-theme="dark"] .shell .nav button:hover,
+[data-theme="dark"] .adminSidebar .nav button:hover,
+[data-theme="dark"] .ownerSidebar .nav button:hover{background:#434952!important;color:#fff!important}
+[data-theme="dark"] .shell .nav button.active,
+[data-theme="dark"] .adminSidebar .nav button.active,
+[data-theme="dark"] .ownerSidebar .nav button.active{background:#1d4ed8!important;color:#fff!important}
+[data-theme="dark"] .shell .nav .menuicon,
+[data-theme="dark"] .adminSidebar .menuicon,
+[data-theme="dark"] .ownerSidebar .menuicon{background:#434952!important;color:#c5d4f0!important}
+
+/* Cards, panels, tables, invoices, entities */
+[data-theme="dark"] .card,
+[data-theme="dark"] .panel,
+[data-theme="dark"] .financialCard,
+[data-theme="dark"] .dashboard-glass,
+[data-theme="dark"] .activitypanel,
+[data-theme="dark"] .connectx,
+[data-theme="dark"] .zudo,
+[data-theme="dark"] .dueleft,
+[data-theme="dark"] .dueright,
+[data-theme="dark"] .storeDetails,
+[data-theme="dark"] .storeDetails>div,
+[data-theme="dark"] .themeEditor>section,
+[data-theme="dark"] .licensecard,
+[data-theme="dark"] .price,
+[data-theme="dark"] .permissionbox,
+[data-theme="dark"] .invoiceSection,
+[data-theme="dark"] .invoiceform,
+[data-theme="dark"] .invoiceform>.invoiceSection,
+[data-theme="dark"] .modalbox,
+[data-theme="dark"] .authmodal,
+[data-theme="dark"] .tablewrap,
+[data-theme="dark"] table,
+[data-theme="dark"] .partyInfo,
+[data-theme="dark"] .duesummary,
+[data-theme="dark"] .duelistitem,
+[data-theme="dark"] .cmsPage,
+[data-theme="dark"] .contactForm,
+[data-theme="dark"] .articlePage,
+[data-theme="dark"] .capacityModal,
+[data-theme="dark"] .cxcontact,
+[data-theme="dark"] .cxPlanEntitlement,
+[data-theme="dark"] .zudoMoreMenu,
+[data-theme="dark"] .cxMoreMenu{
+  background:#3a3f47!important;
+  background-image:none!important;
+  border-color:#4a5058!important;
+  color:#e8eaed!important;
+  backdrop-filter:none!important
+}
+[data-theme="dark"] .cards .card,
+[data-theme="dark"] .sidebar:not(.adminSidebar):not(.ownerSidebar) ~ .main .cards .card,
+[data-theme="dark"] .sidebar:not(.adminSidebar):not(.ownerSidebar) ~ .main .dashboard-glass{
+  background:#3a3f47!important;border-color:#4a5058!important
+}
+[data-theme="dark"] table td,
+[data-theme="dark"] table th,
+[data-theme="dark"] .tablewrap,
+[data-theme="dark"] .data-table{
+  background:#3a3f47!important;color:#e8eaed!important;border-color:#4a5058!important
+}
+[data-theme="dark"] th{background:#434952!important;color:#b4bac2!important}
+[data-theme="dark"] tbody tr:hover,
+[data-theme="dark"] tbody tr:hover td{background:#434952!important;color:#e8eaed!important}
+[data-theme="dark"] .dueInvoice td{background:#4a3538!important;color:#f5d0d0!important}
+[data-theme="dark"] .dueInvoice:hover td{background:#553e41!important}
+
+[data-theme="dark"] input,
+[data-theme="dark"] select,
+[data-theme="dark"] textarea{
+  background:#353a42!important;border-color:#4a5058!important;color:#e8eaed!important
+}
+[data-theme="dark"] button.secondary,.secondary{
+  background:#434952!important;color:#e8eaed!important;border-color:#4a5058!important
+}
+
+/* 4. Text contrast in dark mode */
+[data-theme="dark"] h1,
+[data-theme="dark"] h2,
+[data-theme="dark"] h3,
+[data-theme="dark"] h4,
+[data-theme="dark"] .head h1,
+[data-theme="dark"] .head h2,
+[data-theme="dark"] .panel h2,
+[data-theme="dark"] .panel h3,
+[data-theme="dark"] .card strong,
+[data-theme="dark"] .financialHead h2,
+[data-theme="dark"] .financialTotal strong,
+[data-theme="dark"] .financeTrack b,
+[data-theme="dark"] .storeDetails b,
+[data-theme="dark"] .dueleft h2,
+[data-theme="dark"] .dueright h2,
+[data-theme="dark"] .cxhead h2,
+[data-theme="dark"] .zudoMain header h2,
+[data-theme="dark"] .zudoWelcome b,
+[data-theme="dark"] .cxcontact b,
+[data-theme="dark"] label,
+[data-theme="dark"] .invoiceform label,
+[data-theme="dark"] .invoiceform .invoiceSection h3{
+  color:#e8eaed!important
+}
+[data-theme="dark"] .muted,
+[data-theme="dark"] .dashboardintro,
+[data-theme="dark"] .card small,
+[data-theme="dark"] .lead,
+[data-theme="dark"] .sectionlead,
+[data-theme="dark"] .activitylist span,
+[data-theme="dark"] .financeYAxis span,
+[data-theme="dark"] .financeAxisLabel,
+[data-theme="dark"] .financeBarGroup>span,
+[data-theme="dark"] .storeDetails span,
+[data-theme="dark"] .duelistitem small,
+[data-theme="dark"] .cxhead span,
+[data-theme="dark"] .zudoMain header span,
+[data-theme="dark"] .zudoUsage,
+[data-theme="dark"] .zudoMsg>span,
+[data-theme="dark"] .zudoWelcome{
+  color:#b4bac2!important
+}
+[data-theme="dark"] .panel>p,
+[data-theme="dark"] .muted{
+  color:#b4bac2!important
+}
+[data-theme="dark"] .financeTrack b{background:#3a3f47!important}
+[data-theme="dark"] .financeGrid i{border-color:#4a5058!important}
+[data-theme="dark"] .shopid,
+[data-theme="dark"] code{background:#434952!important;color:#93c5fd!important}
+[data-theme="dark"] .settingtabs{border-color:#4a5058!important}
+[data-theme="dark"] .settingtabs button{color:#b4bac2!important;background:transparent!important}
+[data-theme="dark"] .settingtabs button.on{color:#93c5fd!important;border-color:#93c5fd!important}
+[data-theme="dark"] .connectxnav,
+[data-theme="dark"] .zudoSide,
+[data-theme="dark"] .zudoComposer,
+[data-theme="dark"] .connectxmain,
+[data-theme="dark"] .zudoMain{background:#353a42!important;border-color:#4a5058!important;color:#e8eaed!important}
+[data-theme="dark"] .zudoConv,
+[data-theme="dark"] .zudoConv.on,
+[data-theme="dark"] .connectxnav button{background:transparent!important;color:#e8eaed!important}
+[data-theme="dark"] .zudoConv:hover,
+[data-theme="dark"] .zudoConvRow.on{background:#434952!important;color:#e8eaed!important;border-color:#4a5058!important}
+[data-theme="dark"] .zudoConvRow{border-bottom-color:#4a5058!important}
+[data-theme="dark"] .zudoMsg.assistant>div{background:#434952!important;border-color:#4a5058!important;color:#e8eaed!important}
+[data-theme="dark"] .invoiceform{background:#2f333a!important}
+[data-theme="dark"] .invoiceform>.modalhead,
+[data-theme="dark"] .invoiceform .itemEntrySection h3,
+[data-theme="dark"] .invoiceform #lines table th{background:#353a42!important;color:#e8eaed!important}
+[data-theme="dark"] .invoiceform .partyInfo{background:#353a42!important;border-left-color:#1d4ed8!important;color:#e8eaed!important}
+[data-theme="dark"] .sitehead{background:#353a42!important;border-color:#4a5058!important}
+[data-theme="dark"] .sitehead .wordmark,[data-theme="dark"] .wordmark{color:#e8eaed!important}
+[data-theme="dark"] .sitehead nav a{color:#b4bac2!important}
+
+@media(max-width:1080px){.cards{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
+@media(max-width:760px){.cards{grid-template-columns:1fr 1fr!important}}
