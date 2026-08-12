@@ -1835,3 +1835,35 @@ html body .reportStoreName{display:block;margin:1px 0 5px;color:#fff;font-size:1
   html body .shell .top{position:sticky!important;top:0!important;z-index:25!important;width:100%!important}
   html body .shell .page{min-height:calc(100dvh - 70px)!important}
 }
+
+/* Flat dashboard frame: shared gray dividers, no floating surface or shadows. */
+html body .shell .sidebar,
+html body .shell .top{
+  box-shadow:none!important;
+  filter:none!important;
+  border-color:#cfd6df!important;
+}
+html body .shell .sidebar{
+  border-right:1px solid #cfd6df!important;
+}
+html body .shell .top{
+  border-bottom:1px solid #cfd6df!important;
+}
+html body .sidebarBrand{
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  min-height:54px;
+  padding:4px 8px 12px;
+  margin:0 0 10px;
+  border-bottom:1px solid rgba(207,214,223,.55);
+  color:#fff;
+  line-height:1.18;
+}
+html body .sidebarBrand b{font-size:15px;letter-spacing:-.2px;color:#fff}
+html body .sidebarBrand small{margin-top:4px;color:#d8e0eb;font-size:10px;font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+html body .topHeaderSpacer{min-height:1px}
+[data-theme="dark"] html body .shell .sidebar,
+[data-theme="dark"] html body .shell .top{border-color:#4a5058!important;box-shadow:none!important}
+[data-theme="dark"] html body .sidebarBrand{border-color:#4a5058!important}
+[data-theme="dark"] html body .sidebarBrand small{color:#b4bac2!important}
