@@ -1796,3 +1796,31 @@ html body .reportComing{background:#fff;border:1px solid #d8dee6;border-radius:7
 @media(max-width:950px){html body .reportKpis{grid-template-columns:repeat(2,minmax(0,1fr))}html body .reportGrid{grid-template-columns:1fr}}
 @media(max-width:650px){html body .reportFilter{align-items:stretch;flex-direction:column}html body .reportDateFields{display:grid;grid-template-columns:1fr 1fr}html body .reportDateFields button{grid-column:1/-1}html body .reportIntro{align-items:start;flex-direction:column}html body .reportKpis{grid-template-columns:1fr}html body .reportPanel{padding:14px}html body .reportFormula{gap:4px}.reportFormula span{padding:7px;font-size:9px}.reportFormula i{font-size:10px}.reportPanelHead{flex-direction:column}.reportTabs{width:100%}}
 @media print{html body .sidebar,html body .top,html body .head,html body .reportTabs,html body .reportFilter,html body #reportPrint{display:none!important}html body .main,html body .page{margin:0!important;padding:0!important;background:#fff!important}html body .reportIntro{color:#111!important;background:#fff!important;border:1px solid #111!important}html body .reportIntro h2{color:#111!important}html body .reportIntro p{color:#333!important}html body .reportPanel,html body .reportKpi{break-inside:avoid;border-color:#bbb!important}}
+
+/* Report and workspace adjustments — uses the same vanilla JS dashboard structure */
+html body .reportStoreName{display:block;margin:1px 0 5px;color:#fff;font-size:13px;font-weight:750}
+
+/* Desktop workspace: navigation remains fixed; only the dashboard content scrolls. */
+@media (min-width:801px){
+  html body .shell{height:100vh;min-height:0;overflow:hidden}
+  html body .shell .sidebar{position:fixed!important;z-index:20;top:70px;bottom:0;left:0;width:220px;height:auto!important;overflow:hidden!important;display:grid!important;grid-template-rows:minmax(0,1fr) auto!important}
+  html body .shell .sidebar .nav{min-height:0;overflow-y:auto;overflow-x:hidden;padding-bottom:10px}
+  html body .shell .main{grid-column:2!important;min-width:0;height:100vh;overflow-y:auto;overflow-x:hidden}
+  html body .shell .top{position:sticky!important;top:0;z-index:15}
+}
+
+/* Centered, narrow-margin printed report. */
+@media print{
+  @page{size:auto;margin:10mm}
+  html body{background:#fff!important}
+  html body .reportPage{width:100%!important;max-width:178mm!important;margin:0 auto!important;text-align:center!important}
+  html body .reportBody{gap:10px!important}
+  html body .reportIntro{justify-content:center!important;text-align:center!important;padding:10px!important}
+  html body .reportIntro .reportStoreName{color:#111!important}
+  html body .reportKpis{gap:6px!important}
+  html body .reportKpi,html body .reportPanel{padding:9px!important;text-align:left!important}
+  html body .reportKpi strong,html body .reportProfitValue{text-align:center!important}
+  html body .reportPanelHead{text-align:center!important;justify-content:center!important}
+  html body .reportSummaryTable table,html body .reportSummaryTable th,html body .reportSummaryTable td{text-align:center!important}
+  html body .reportGrid{gap:8px!important}
+}
