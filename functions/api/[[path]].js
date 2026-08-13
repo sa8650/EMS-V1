@@ -94,7 +94,7 @@ export async function onRequest(context){const {request,env,params}=context, pat
  if(path==='platform/addons'){
   if(s.role!=='owner')return fail('Forbidden',403);
   if(method==='GET')return json(await db(env,'addon_settings?select=*&order=addon_key'));
-  if(method==='PATCH'){let b=await body(request);let [x]=await db(env,`addon_settings?addon_key=eq.${b.addon_key}`,{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify({enabled:!!b.enabled,title:b.title,details:b.details,unit_price:Number(b.unit_price),min_days:Number(b.min_days),max_days:Number(b.max_days),min_daily_limit:Number(b.min_daily_limit),max_daily_limit:Number(b.max_daily_limit),updated_by:s.id,updated_at:new Date().toISOString()})});return json(x)}
+  if(method==='PATCH'){let b=await body(request);let [x]=await db(env,`addon_settings?addon_key=eq.${b.addon_key}`,{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify({enabled:!!b.enabled,title:b.title,image_url:b.image_url||null,details:b.details,unit_price:Number(b.unit_price),min_days:Number(b.min_days),max_days:Number(b.max_days),min_daily_limit:Number(b.min_daily_limit),max_daily_limit:Number(b.max_daily_limit),updated_by:s.id,updated_at:new Date().toISOString()})});return json(x)}
  }
  if(path==='platform/addon-purchases'){
   if(s.role!=='owner')return fail('Forbidden',403);
