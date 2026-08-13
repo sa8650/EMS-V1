@@ -1879,3 +1879,21 @@ html body .healthGrid{display:grid;grid-template-columns:1fr 1fr;gap:16px}.healt
 [data-theme="dark"] html body .healthHero,[data-theme="dark"] html body .healthStart,[data-theme="dark"] html body .healthMetrics article{background:#3a3f47!important;border-color:#4a5058!important}.healthHero h2,[data-theme="dark"] html body .healthStart h3,[data-theme="dark"] html body .healthMetrics b{color:#e8eaed!important}[data-theme="dark"] html body .healthUsage{background:#353a42;border-color:#4a5058;color:#e8eaed}.healthStart p,[data-theme="dark"] html body .healthHero p,[data-theme="dark"] html body .healthMetrics small,[data-theme="dark"] html body .healthMetrics span{color:#b4bac2!important}[data-theme="dark"] html body .healthFindings li{background:#493d2d;color:#f1ddbb}[data-theme="dark"] html body .healthProfile,[data-theme="dark"] html body .healthLeaders li{border-color:#4a5058}[data-theme="dark"] html body .healthProfile,[data-theme="dark"] html body .healthLeaders li span{color:#cbd0d6}[data-theme="dark"] html body .healthLeaders li b{color:#e8eaed}[data-theme="dark"] html body .healthInsights>div:last-child{background:#353a42;color:#e8eaed}
 @media(max-width:1000px){html body .healthMetrics{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:650px){html body .healthHero,html body .healthStart{align-items:stretch;flex-direction:column}.healthUsage{min-width:0}.healthStart button{width:100%}.healthScore{align-items:flex-start;flex-direction:column}.healthMetrics,html body .healthGrid{grid-template-columns:1fr 1fr}.healthMetrics article:last-child{grid-column:1/-1}}
+
+/* License plan feature selector: explicit Off / On left-right toggle. */
+html body .toggleEntitlement{justify-content:space-between!important;gap:14px!important}
+html body .planFeatureToggle{display:inline-flex;align-items:center;gap:7px;white-space:nowrap;font-size:10px;font-weight:800;color:#7b8490;text-transform:uppercase;letter-spacing:.04em}
+html body .planFeatureToggle input{position:absolute!important;opacity:0!important;pointer-events:none!important;width:1px!important;height:1px!important}
+html body .planFeatureToggle i{display:block;width:42px;height:22px;border-radius:999px;background:#aeb8c5;position:relative;cursor:pointer;transition:.18s}
+html body .planFeatureToggle i:after{content:'';position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:#fff;transition:.18s}
+html body .planFeatureToggle input:checked+i{background:#1d4ed8}
+html body .planFeatureToggle input:checked+i:after{left:23px}
+html body .planFeatureToggle input:checked+i+b{color:#1d4ed8}
+html body .planFeatureToggle input:not(:checked)~b:first-child{color:#667085}
+html body .cmsPage summary{display:flex;align-items:center;justify-content:space-between;gap:12px}
+html body .cmsEditButton{padding:6px 10px!important;font-size:11px!important;white-space:nowrap}
+/* System notifications always remain visible over cards, menus and modals. */
+html body #toast{position:fixed!important;z-index:99999!important;top:18px!important;right:18px!important;bottom:auto!important;max-width:min(420px,calc(100vw - 36px));box-shadow:0 10px 25px rgba(15,23,42,.25)!important}
+[data-theme="dark"] html body .planFeatureToggle{color:#b4bac2}
+[data-theme="dark"] html body .planFeatureToggle i{background:#59606b}
+@media(max-width:600px){html body #toast{top:10px!important;right:10px!important;max-width:calc(100vw - 20px)}html body .toggleEntitlement{align-items:flex-start!important;flex-direction:column!important}}
