@@ -10,6 +10,11 @@ ALTER TABLE public.addon_purchases
   ADD COLUMN IF NOT EXISTS coupon_code     text,
   ADD COLUMN IF NOT EXISTS discount_amount numeric(12,2) NOT NULL DEFAULT 0;
 
+-- 1b) Premium add-on card image (PNG URL set in each card's Setup modal).
+--     NULL/empty shows the default large icon instead.
+ALTER TABLE public.addon_settings
+  ADD COLUMN IF NOT EXISTS image_url text;
+
 -- 2) Make sure the three add-ons have a display title.
 --    The admin card / cart / checkout previously showed a blank name when
 --    `title` was NULL. This seeds a sensible title if it is missing.
