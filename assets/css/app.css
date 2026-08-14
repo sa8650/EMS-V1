@@ -2003,3 +2003,25 @@ html body #toast{position:fixed!important;z-index:99999!important;top:18px!impor
 [data-theme="dark"] .zudoMoreMenu{background:#1e293b!important;border-color:#374151!important}
 [data-theme="dark"] .zudoMoreMenu button.danger{background:#4a1e27!important;color:#fda4af!important}
 [data-theme="dark"] .zudoUsage{color:#9ca3af!important}
+
+
+/* ==== Zudo chat history — neutral (no background colour) ==== */
+.zudoConv,.zudoConvRow{background:transparent!important;border-left:none!important;border-bottom:none!important;border-radius:8px!important;color:#374151!important;box-shadow:none!important}
+.zudoConv:hover{background:#f3f4f6!important;color:#111827!important}
+.zudoConv.on,.zudoConvRow.on,.zudoConvRow.on .zudoConv{background:transparent!important;color:#111827!important;font-weight:700!important;border-left:none!important;box-shadow:none!important}
+.zudoMore{background:transparent!important;box-shadow:none!important}
+[data-theme="dark"] .zudoConv,[data-theme="dark"] .zudoConvRow{color:#cbd5e1!important;background:transparent!important}
+[data-theme="dark"] .zudoConv:hover{background:#1f2937!important;color:#f9fafb!important}
+[data-theme="dark"] .zudoConv.on,[data-theme="dark"] .zudoConvRow.on,[data-theme="dark"] .zudoConvRow.on .zudoConv{background:transparent!important;color:#f9fafb!important;font-weight:700!important;border-left:none!important}
+
+/* ==== Owner Zudo conversation logs ==== */
+.zudoLogRow{cursor:pointer}
+.zudoLogRow:hover{background:#f3f4f6}
+[data-theme="dark"] .zudoLogRow:hover{background:#1f2937}
+.zudoLogMsgs{display:flex;flex-direction:column;gap:12px;max-height:60vh;overflow:auto;padding:4px 2px}
+.zudoLogMsgs .zudoMsg{max-width:100%;align-self:flex-start}
+.zudoLogMsgs .zudoMsg.user{align-self:flex-end}
+.zudoLogMsgs .zudoMsg>div{background:#f3f4f6;border:1px solid #e5e7eb;color:#1f2937}
+.zudoLogMsgs .zudoMsg.user>div{background:#4f46e5;border-color:#4f46e5;color:#fff}
+[data-theme="dark"] .zudoLogMsgs .zudoMsg>div{background:#1f2937;border-color:#374151;color:#e5e7eb}
+[data-theme="dark"] .zudoLogMsgs .zudoMsg.user>div{background:#4f46e5;border-color:#4f46e5;color:#fff}
