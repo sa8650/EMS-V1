@@ -1923,3 +1923,83 @@ html body #toast{position:fixed!important;z-index:99999!important;top:18px!impor
 .addonHistory h2{font-size:16px;margin:0 0 12px}
 .addonHistory td{vertical-align:top;font-size:12px}
 .addonHistory td small{color:#667085;font-size:10px}
+
+
+/* ==== Coupon management (owner modal) ==== */
+.cpCoupons h3,.cpPayForm h3{margin:4px 0 10px;font-size:13px;font-weight:700;color:#1b2430}
+.cpCoupons hr,.modalbox hr{border:none;border-top:1px solid #e5e9ef;margin:16px 0}
+.cpCouponList{display:flex;flex-direction:column;gap:8px;margin-bottom:12px;max-height:240px;overflow:auto}
+.cpRow{display:flex;align-items:center;justify-content:space-between;gap:10px;border:1px solid #e2e8f0;border-radius:9px;padding:9px 12px;background:#fff}
+.cpRow.off{background:#f8fafc;opacity:.72}
+.cpCode{display:flex;flex-direction:column;gap:1px;min-width:0}
+.cpCode b{font-size:13px;color:#1b2430;letter-spacing:.4px}
+.cpCode small{font-size:10px;color:#64748b}
+.cpActions{display:flex;gap:6px;flex-shrink:0}
+.cpActions button{padding:6px 10px;font-size:11px;border-radius:7px}
+.cpToggle.on{background:#e7f6ec;color:#166534;border:1px solid #b6e2c7}
+.cpToggle.off{background:#eef2f7;color:#475467;border:1px solid #d8dee6}
+.cpDel{padding:6px 10px!important}
+.cpAddRow{display:grid;grid-template-columns:1fr 74px auto;gap:8px;align-items:center}
+.cpAddRow input{padding:9px 11px}
+.cpAddRow button{white-space:nowrap}
+[data-theme="dark"] .cpCoupons h3,[data-theme="dark"] .cpPayForm h3{color:#e8eaed}
+[data-theme="dark"] .cpRow{background:#353a42;border-color:#4a5058}
+[data-theme="dark"] .cpRow.off{background:#2f343b}
+[data-theme="dark"] .cpCode b{color:#e8eaed}
+[data-theme="dark"] .cpCode small{color:#9aa3ad}
+
+/* ==== Zudo AI — flat surface redesign ==== */
+.zudo{
+  background:#ffffff!important;background-image:none!important;
+  border:1px solid #e5e7eb!important;border-radius:14px!important;
+  box-shadow:0 1px 3px rgba(16,24,40,.06)!important;overflow:hidden
+}
+.zudoSide{background:#f7f8fa!important;border-right:1px solid #e5e7eb!important}
+.zudoBrand{color:#111827!important}
+.zudoBrand small{color:#9ca3af!important}
+.zudoSide>button#zudoNew{background:#4f46e5!important;color:#fff!important;border:none!important;box-shadow:none!important}
+.zudoConv,.zudoConvRow{border-radius:8px!important;border-bottom:none!important;color:#374151!important}
+.zudoConv:hover{background:#eef0f4!important;color:#111827!important}
+.zudoConv.on,.zudoConvRow.on{background:#e0e7ff!important;color:#4f46e5!important;border-left:3px solid #4f46e5!important;border-radius:8px!important}
+.zudoMore{color:#9ca3af!important}
+.zudoMain,.zudoComposer{background:#ffffff!important}
+.zudoMain header{border-bottom:1px solid #e5e7eb!important;background:#ffffff!important}
+.zudoMain header h2{color:#111827!important}
+.zudoMain header span{color:#6b7280!important}
+.zudoBadge{background:#eef2ff!important;color:#4f46e5!important}
+.zudoMessages{background:#ffffff!important}
+.zudoWelcome{color:#6b7280!important}
+.zudoWelcome b{color:#111827!important}
+.zudoPrompt{background:#ffffff!important;color:#4f46e5!important;border:1px solid #c7d2fe!important;border-radius:999px!important;box-shadow:none!important}
+.zudoMsg.user>div{background:#4f46e5!important;background-image:none!important;color:#ffffff!important;border-radius:14px!important;border-bottom-right-radius:4px!important;box-shadow:none!important}
+.zudoMsg.assistant>div{background:#f3f4f6!important;border:1px solid #e5e7eb!important;color:#1f2937!important;border-radius:14px!important;border-bottom-left-radius:4px!important;box-shadow:none!important}
+.zudoMsg.thinking>div{color:#9ca3af!important}
+.zudoComposer{border-top:1px solid #e5e7eb!important;background:#ffffff!important}
+.zudoComposer textarea{border:1px solid #d1d5db!important;border-radius:10px!important;background:#ffffff!important}
+.zudoComposer button{background:#4f46e5!important;color:#fff!important;border:none!important;box-shadow:none!important}
+.zudoMoreMenu{background:#ffffff!important;border-color:#e5e7eb!important;box-shadow:0 8px 22px rgba(16,24,40,.12)!important}
+.zudoMoreMenu button.danger{background:#fef2f2!important;color:#be123c!important}
+.zudoUsage{color:#6b7280!important}
+[data-theme="dark"] .zudo{background:#111827!important;border-color:#1f2937!important;box-shadow:none!important}
+[data-theme="dark"] .zudoSide{background:#0f172a!important;border-color:#1f2937!important}
+[data-theme="dark"] .zudoBrand{color:#e5e7eb!important}
+[data-theme="dark"] .zudoBrand small{color:#6b7280!important}
+[data-theme="dark"] .zudoConv{color:#cbd5e1!important}
+[data-theme="dark"] .zudoConv:hover{background:#1f2937!important;color:#f9fafb!important}
+[data-theme="dark"] .zudoConv.on,[data-theme="dark"] .zudoConvRow.on{background:#312e81!important;color:#c7d2fe!important;border-left:3px solid #818cf8!important}
+[data-theme="dark"] .zudoMain,[data-theme="dark"] .zudoComposer{background:#111827!important}
+[data-theme="dark"] .zudoMain header{background:#111827!important;border-color:#1f2937!important}
+[data-theme="dark"] .zudoMain header h2{color:#f9fafb!important}
+[data-theme="dark"] .zudoMain header span{color:#9ca3af!important}
+[data-theme="dark"] .zudoBadge{background:#1e1b4b!important;color:#c7d2fe!important}
+[data-theme="dark"] .zudoMessages{background:#111827!important}
+[data-theme="dark"] .zudoWelcome{color:#9ca3af!important}
+[data-theme="dark"] .zudoWelcome b{color:#f9fafb!important}
+[data-theme="dark"] .zudoPrompt{background:#1e293b!important;color:#c7d2fe!important;border-color:#4f46e5!important}
+[data-theme="dark"] .zudoMsg.user>div{background:#4f46e5!important;color:#fff!important}
+[data-theme="dark"] .zudoMsg.assistant>div{background:#1f2937!important;border-color:#374151!important;color:#e5e7eb!important}
+[data-theme="dark"] .zudoComposer{border-color:#1f2937!important;background:#111827!important}
+[data-theme="dark"] .zudoComposer textarea{background:#0f172a!important;border-color:#374151!important;color:#e5e7eb!important}
+[data-theme="dark"] .zudoMoreMenu{background:#1e293b!important;border-color:#374151!important}
+[data-theme="dark"] .zudoMoreMenu button.danger{background:#4a1e27!important;color:#fda4af!important}
+[data-theme="dark"] .zudoUsage{color:#9ca3af!important}
