@@ -63,7 +63,7 @@ end $$;
 -- 6) Verification scan log (for the EMS Owner TrueBill page).
 create table if not exists public.truebill_scans (
   id bigint generated always as identity primary key,
-  store_id uuid,
+  store_id uuid references public.stores(id) on delete set null,
   invoice_id uuid,
   invoice_number text not null,
   invoice_kind text,
