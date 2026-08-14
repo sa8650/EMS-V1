@@ -2025,3 +2025,74 @@ html body #toast{position:fixed!important;z-index:99999!important;top:18px!impor
 .zudoLogMsgs .zudoMsg.user>div{background:#4f46e5;border-color:#4f46e5;color:#fff}
 [data-theme="dark"] .zudoLogMsgs .zudoMsg>div{background:#1f2937;border-color:#374151;color:#e5e7eb}
 [data-theme="dark"] .zudoLogMsgs .zudoMsg.user>div{background:#4f46e5;border-color:#4f46e5;color:#fff}
+
+
+/* ===== DEFINITIVE: neutral chat history (no blue) — max specificity ===== */
+html body .zudoConv,
+html body .zudoSide .zudoConv,
+html body .zudoConvRow,
+html body .zudoSide .zudoConvRow{
+  background:transparent!important;
+  background-image:none!important;
+  border-left:none!important;
+  box-shadow:none!important;
+  color:#374151!important;
+  font-weight:500!important;
+}
+html body .zudoConv:hover,
+html body .zudoSide .zudoConv:hover{
+  background:#f3f4f6!important;
+  color:#111827!important;
+}
+html body .zudoConv.on,
+html body .zudoConvRow.on,
+html body .zudoConvRow.on .zudoConv,
+html body .zudoSide .zudoConv.on{
+  background:transparent!important;
+  background-image:none!important;
+  border-left:none!important;
+  color:#111827!important;
+  font-weight:700!important;
+}
+html body .zudoMore{
+  background:transparent!important;
+  color:#9ca3af!important;
+  box-shadow:none!important;
+}
+html body .zudoMore:hover{
+  background:#f3f4f6!important;
+  color:#374151!important;
+}
+[data-theme="dark"] html body .zudoConv,
+[data-theme="dark"] html body .zudoSide .zudoConv,
+[data-theme="dark"] html body .zudoConvRow,
+[data-theme="dark"] html body .zudoSide .zudoConvRow{
+  background:transparent!important;
+  background-image:none!important;
+  border-left:none!important;
+  color:#cbd5e1!important;
+  font-weight:500!important;
+}
+[data-theme="dark"] html body .zudoConv:hover,
+[data-theme="dark"] html body .zudoSide .zudoConv:hover{
+  background:#1f2937!important;
+  color:#f9fafb!important;
+}
+[data-theme="dark"] html body .zudoConv.on,
+[data-theme="dark"] html body .zudoConvRow.on,
+[data-theme="dark"] html body .zudoConvRow.on .zudoConv,
+[data-theme="dark"] html body .zudoSide .zudoConv.on{
+  background:transparent!important;
+  background-image:none!important;
+  border-left:none!important;
+  color:#f9fafb!important;
+  font-weight:700!important;
+}
+[data-theme="dark"] html body .zudoMore{
+  background:transparent!important;
+  color:#6b7280!important;
+}
+[data-theme="dark"] html body .zudoMore:hover{
+  background:#1f2937!important;
+  color:#e5e7eb!important;
+}
