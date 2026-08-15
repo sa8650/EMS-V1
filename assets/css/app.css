@@ -452,8 +452,8 @@ button:disabled{opacity:.42;cursor:not-allowed!important;filter:grayscale(.3)}
 :root{--classic-ink:#172536;--classic-navy:#173b59;--classic-navy-deep:#102d45;--classic-slate:#607184;--classic-cream:#f7f4ee;--classic-paper:#fffdfa;--classic-line:#e2ddd3;--classic-teal:#2f806f;--classic-teal-dark:#236456;--classic-gold:#c8954e;--classic-red:#b64f4b}
 body{color:var(--classic-ink)!important;background:radial-gradient(circle at 10% 0%,rgba(200,149,78,.08),transparent 28rem),linear-gradient(180deg,#faf9f6 0%,var(--classic-cream) 100%)!important;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif!important}
 h1,h2,h3,h4,.brand h1,.logo,.wordmark{font-family:Georgia,"Times New Roman",serif!important;letter-spacing:-.035em;color:var(--classic-ink)!important}
-button{border-radius:9px!important;background:var(--classic-navy)!important;box-shadow:0 3px 0 rgba(16,45,69,.12)!important;transition:background .18s ease,transform .18s ease,box-shadow .18s ease!important}
-button:hover{background:var(--classic-teal-dark)!important;box-shadow:0 6px 14px rgba(23,59,89,.16)!important;transform:translateY(-1px)}
+
+
 button.secondary,.secondary{color:var(--classic-navy)!important;background:#eee9df!important;border-color:#ded6c8!important;box-shadow:none!important}
 button.danger,.danger{background:var(--classic-red)!important;color:#fff!important}
 input,select,textarea{color:var(--classic-ink)!important;background:var(--classic-paper)!important;border:1px solid #d7d2c9!important;border-radius:9px!important}
@@ -1011,7 +1011,7 @@ html,body{background:var(--rust-cream)!important;color:var(--rust-ink)!important
 /* Public site */
 .sitehead{background:rgba(250,249,246,.94)!important;border-bottom:1px solid var(--rust-line)!important;box-shadow:0 8px 24px rgba(23,37,54,.04)!important;backdrop-filter:blur(18px)!important}.sitehead .wordmark,.sitehead .wordmark b{color:var(--rust-navy)!important}.sitehead nav a{color:var(--rust-slate)!important}.sitehead nav a:hover{color:var(--rust-teal-dark)!important}.website,.publicPage,.landing{background:var(--rust-cream)!important}.hero,.section,.publicHero{background:transparent!important}.hero h1,.publicHero h1,.aboutPage h1,.articlePage h1,.contactInfo h1{color:var(--rust-ink)!important}.eyebrow,.featureicon{color:var(--rust-teal-dark)!important}.lead,.sectionlead,.muted,.publicHero p{color:var(--rust-slate)!important}.screen,.graphicWindow,.featuregrid article,.pricegrid article,.blogGrid article,.articlePage,.contactForm,.cmsPage{background:rgba(255,253,250,.90)!important;border:1px solid var(--rust-line)!important;box-shadow:0 7px 18px rgba(21,45,63,.07)!important}.cta,footer{background:var(--rust-deep)!important}.cta h2,.cta p,footer,footer a{color:#fff!important}
 /* Universal solid components */
-button{background:var(--rust-navy)!important;color:#fff!important;border-radius:9px!important;box-shadow:0 3px 0 rgba(16,45,69,.12)!important}button:hover{background:var(--rust-teal-dark)!important;transform:translateY(-1px)!important;box-shadow:0 6px 14px rgba(23,59,89,.16)!important}button.secondary,.secondary{background:#eee9df!important;color:var(--rust-navy)!important;border:1px solid #ded6c8!important;box-shadow:none!important}button.danger,.danger{background:var(--rust-red)!important;color:#fff!important}input,select,textarea{background:var(--rust-paper)!important;color:var(--rust-ink)!important;border-color:#d7d2c9!important;border-radius:9px!important}input:focus,select:focus,textarea:focus{border-color:var(--rust-teal)!important;box-shadow:0 0 0 3px rgba(47,128,111,.12)!important}
+button.secondary,.secondary{background:#eee9df!important;color:var(--rust-navy)!important;border:1px solid #ded6c8!important;box-shadow:none!important}button.danger,.danger{background:var(--rust-red)!important;color:#fff!important}input,select,textarea{background:var(--rust-paper)!important;color:var(--rust-ink)!important;border-color:#d7d2c9!important;border-radius:9px!important}input:focus,select:focus,textarea:focus{border-color:var(--rust-teal)!important;box-shadow:0 0 0 3px rgba(47,128,111,.12)!important}
 /* Dashboard structure */
 .shell,.main{background:var(--rust-cream)!important;color:var(--rust-ink)!important}.shell .top{background:rgba(255,253,250,.92)!important;background-image:none!important;border-bottom:1px solid var(--rust-line)!important;box-shadow:0 5px 16px rgba(23,37,54,.04)!important;backdrop-filter:blur(16px)!important}.topBrand b,.topBrand small,.topUser{color:var(--rust-ink)!important}.top .headerProfile{background:#e4f0eb!important;color:var(--rust-teal-dark)!important}.top .themeSwitch{background:#eee9df!important;color:var(--rust-navy)!important}.top .zudoTopButton{background:#e4f0eb!important;color:var(--rust-teal-dark)!important}.shell .sidebar,.sidebar,.adminSidebar,.ownerSidebar{background:linear-gradient(180deg,var(--rust-deep),#17364e)!important;background-image:none!important;color:#d6e2e2!important;backdrop-filter:none!important}.shell .nav button,.adminSidebar .nav button,.ownerSidebar .nav button{background:transparent!important;color:#c6d7d9!important;border:1px solid transparent!important;box-shadow:none!important;backdrop-filter:none!important}.shell .nav button:hover,.shell .nav button.active,.adminSidebar .nav button:hover,.adminSidebar .nav button.active,.ownerSidebar .nav button:hover,.ownerSidebar .nav button.active{background:rgba(255,255,255,.11)!important;color:#fff!important;border-color:rgba(255,255,255,.08)!important;box-shadow:none!important;transform:none!important}.shell .nav .menuicon{background:transparent!important;color:#c6d7d9!important;box-shadow:none!important}.shell .nav button.active .menuicon{color:#fff!important}.sidebottom{border-top-color:rgba(255,255,255,.13)!important}
 /* Solid cards, forms, tables, workspaces */
@@ -1107,15 +1107,8 @@ h1,h2,h3,h4,.wordmark,.brandTitle,.brand h1,.logo{
   color:#1b2430!important;
 }
 
-button{
-  background:#1d4ed8!important;
-  color:#fff!important;
-  border-radius:8px!important;
-  box-shadow:none!important;
-  border:0!important;
-  background-image:none!important;
-}
-button:hover{background:#1e40af!important;transform:none!important;box-shadow:none!important}
+
+
 button.secondary,.secondary{background:#e8edf3!important;color:#1b2a41!important;box-shadow:none!important}
 button.danger,.danger{background:#b42318!important;color:#fff!important;box-shadow:none!important}
 button.linkbutton,.linkbutton{background:transparent!important;color:#1d4ed8!important;box-shadow:none!important}
@@ -2155,3 +2148,67 @@ html body .zudoMore:hover{
 [data-theme="dark"] .hditem:hover{background:#1f2937!important}
 [data-theme="dark"] .hdmeta small{color:#6b7280!important}
 [data-theme="dark"] .hdhead2 input{background:#0f172a!important;border-color:#374151!important;color:#e5e7eb!important}
+
+
+/* ===== DEFINITIVE: HelpDesk list items — never blue (beats theme-palette button rules) ===== */
+html body .hditem,
+html body .hdlist .hditem{
+  background:transparent!important;
+  background-image:none!important;
+  color:inherit!important;
+  box-shadow:none!important;
+  border-radius:0!important;
+  border:0!important;
+}
+html body .hditem:hover{
+  background:#f7f8fa!important;
+  color:inherit!important;
+  box-shadow:none!important;
+}
+[data-theme="dark"] html body .hditem{
+  background:transparent!important;
+  color:#e8eaed!important;
+}
+[data-theme="dark"] html body .hditem:hover{
+  background:#1f2937!important;
+  color:#f9fafb!important;
+}
+
+
+/* ==== Professional Invoice Verification page ==== */
+.verifyPage{min-height:calc(100vh - 120px);background:#f4f6f8;padding:32px 16px}
+.verifyPage .verifyCard{animation:verifyPop .45s cubic-bezier(.2,.9,.3,1.2) both}
+@keyframes verifyPop{0%{opacity:0;transform:translateY(14px) scale(.98)}100%{opacity:1;transform:none}}
+.verifyLoading .verifyStatus{min-height:120px}
+/* status banner */
+.verifyStatus{text-align:center;padding:26px 20px;border-radius:14px;margin-bottom:22px}
+.verifyStatus.success{background:linear-gradient(180deg,#effaf2,#e7f5ec);border:1px solid #c9ead5}
+.verifyStatus.error{background:linear-gradient(180deg,#fdf2f2,#fbe9e9);border:1px solid #f3cdcd}
+.verifyStatus h2{margin:12px 0 4px;font-size:21px;letter-spacing:-.01em}
+.verifyStatus.success h2{color:#137a3a}
+.verifyStatus.error h2{color:#b42318}
+.verifyStatus p{margin:0;color:#475467;font-size:13px}
+.verifyCheck{width:64px;height:64px;display:block;margin:0 auto;overflow:visible}
+.verifyCheck circle{fill:none;stroke-width:3;stroke:#16a34a;stroke-dasharray:166;stroke-dashoffset:166;animation:verifyCircle .6s ease forwards}
+.verifyCheck path{fill:none;stroke:#16a34a;stroke-width:4;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:48;stroke-dashoffset:48;animation:verifyDraw .4s .55s ease forwards}
+.verifyStatus.error .verifyCheck circle{stroke:#dc2626;animation-name:verifyCircleErr}
+.verifyStatus.error .verifyCheck path{stroke:#dc2626;stroke-dasharray:24;stroke-dashoffset:24;animation:verifyDraw .35s .4s ease forwards}
+@keyframes verifyCircle{to{stroke-dashoffset:0}}
+@keyframes verifyCircleErr{0%{stroke-dashoffset:166}60%{stroke-dashoffset:0}100%{stroke-dashoffset:0}}
+@keyframes verifyDraw{to{stroke-dashoffset:0}}
+/* loading spinner */
+.verifyRing{width:64px;height:64px;display:block;margin:0 auto}
+.verifyRing .track{fill:none;stroke:#e5e9ef;stroke-width:4}
+.verifyRing .spin{fill:none;stroke:#2563eb;stroke-width:4;stroke-linecap:round;stroke-dasharray:166;stroke-dashoffset:60;transform-origin:26px 26px;animation:verifySpin 1s linear infinite}
+@keyframes verifySpin{to{transform:rotate(360deg)}}
+.verifyHome{display:inline-block;margin-top:14px;padding:9px 18px;border-radius:8px;background:#2563eb;color:#fff;text-decoration:none;font-weight:650;font-size:13px}
+/* footer in verification page */
+.sitefoot{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:20px 28px;color:#5d6b7a;font-size:12px;border-top:1px solid #e5e9ef;background:#fff}
+.sitefoot .wordmark b{color:#1b2430}
+.sitefoot .wordmark small{display:block;font-size:10px;color:#98a2b3}
+.sitefoot a{color:#2563eb;text-decoration:none}
+[data-theme="dark"] .verifyPage{background:#0f172a}
+[data-theme="dark"] .verifyStatus.success{background:#12281c;border-color:#1f5133}
+[data-theme="dark"] .verifyStatus.error{background:#2a1517;border-color:#5b2327}
+[data-theme="dark"] .verifyStatus p{color:#9ca3af}
+[data-theme="dark"] .sitefoot{background:#111827;border-color:#1f2937;color:#9ca3af}
