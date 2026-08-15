@@ -2219,7 +2219,33 @@ html body .hditem:hover{
 .invoiceBottom .printTotals{margin:0 0 0 auto!important}
 .invoiceQR{display:flex!important;align-items:center!important;gap:12px!important}
 .invoiceQR img{width:114px!important;height:114px!important;image-rendering:auto;border:1px solid #ddd;padding:4px;background:#fff}
-.qrwrap{position:relative;display:inline-block;line-height:0}
-.qrlabel{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);background:#fff;color:#111;font-size:10px;font-weight:800;padding:2px 5px;border-radius:3px;letter-spacing:.3px;box-shadow:0 0 0 3px #fff;white-space:nowrap}
-.invoiceQR b{display:block;font-size:12px;color:#111;margin-bottom:0}
-[data-theme="dark"] .qrlabel{background:#fff;color:#111}
+.qrwrap{display:inline-block;line-height:0}
+.qrtext{display:flex;flex-direction:column;justify-content:center;gap:3px;min-height:114px}
+.qrtext b{display:block;font-size:13px;color:#111;margin:0}
+.qrtext small{font-size:10px;color:#666;letter-spacing:.4px;font-weight:700}
+[data-theme="dark"] .qrtext b{color:#f9fafb}
+[data-theme="dark"] .qrtext small{color:#9ca3af}
+
+
+/* ==== Owner HelpDesk — two-panel (list + conversation) ==== */
+.hdsplit{display:grid;grid-template-columns:320px minmax(0,1fr);gap:0;padding:0;overflow:hidden;min-height:min(620px,calc(100dvh - 150px))}
+.hdpanel{display:flex;flex-direction:column;min-width:0;border-right:1px solid #e5e7eb;background:#fafbfc}
+.hdpanel .hdhead2{flex:0 0 auto;padding:14px 16px;border-bottom:1px solid #e5e7eb;display:flex;flex-direction:column;gap:10px}
+.hdpanel .hdhead2 h2{margin:0;font-size:15px}
+.hdpanel .hdhead2 input{width:100%}
+.hdpanel .hdlist{flex:1 1 auto;min-height:0;overflow:auto}
+.hdconv{display:flex;flex-direction:column;min-width:0;min-height:0;background:#fff}
+.hdconv .hdempty{margin:auto}
+.hdconvhead{flex:0 0 auto;padding:14px 18px;border-bottom:1px solid #e5e7eb;background:#fafbfc}
+.hdconvhead h2{margin:0;font-size:16px;color:#111827}
+.hdconvhead small{font-size:11px;color:#9ca3af}
+.hdconv .hdmsgs{flex:1 1 auto;min-height:0;overflow:auto;padding:18px;background:#fff}
+.hdconv .hdcomposer{flex:0 0 auto;border-top:1px solid #e5e7eb;background:#fff}
+.hditem.on{background:#eef2ff}
+.hditem.on .hdmeta b{color:#4f46e5}
+[data-theme="dark"] .hdsplit{border-color:#1f2937!important}
+[data-theme="dark"] .hdpanel,[data-theme="dark"] .hdconvhead{background:#0f172a!important;border-color:#1f2937!important}
+[data-theme="dark"] .hdconv,[data-theme="dark"] .hdconv .hdmsgs,[data-theme="dark"] .hdconv .hdcomposer{background:#111827!important}
+[data-theme="dark"] .hdconvhead h2{color:#f9fafb!important}
+[data-theme="dark"] .hditem.on{background:#1e1b4b!important}
+@media(max-width:860px){.hdsplit{grid-template-columns:1fr;min-height:0}.hdpanel{border-right:0;border-bottom:1px solid #e5e7eb;max-height:40vh}.hdconv{min-height:55vh}}
