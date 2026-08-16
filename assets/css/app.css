@@ -2249,3 +2249,50 @@ html body .hditem:hover{
 [data-theme="dark"] .hdconvhead h2{color:#f9fafb!important}
 [data-theme="dark"] .hditem.on{background:#1e1b4b!important}
 @media(max-width:860px){.hdsplit{grid-template-columns:1fr;min-height:0}.hdpanel{border-right:0;border-bottom:1px solid #e5e7eb;max-height:40vh}.hdconv{min-height:55vh}}
+
+
+/* ==== Lucide icon system ==== */
+.menuicon{display:inline-flex!important;align-items:center;justify-content:center;width:28px;height:28px;flex:0 0 28px;border-radius:8px;background:#243656;color:#93c5fd;font-family:system-ui;font-weight:800;text-align:center}
+.menuicon .lucide{width:18px;height:18px;display:block}
+.sidebar .nav button .menuicon{background:#243656!important;color:#93c5fd!important;box-shadow:none!important}
+.sidebar .nav button.active .menuicon{background:#1d4ed8!important;color:#ffffff!important}
+.sidebar .nav button:hover .menuicon{background:#2f4a72!important;color:#dbeafe!important}
+
+/* ==== Deep-blue navigation for ALL dashboards (match top header) ==== */
+html body .sidebar:not(.adminSidebar):not(.ownerSidebar),
+html body .adminSidebar,
+html body .ownerSidebar{
+  background:#1b2a41!important;
+  background-image:none!important;
+  color:#d5dde6!important;
+  backdrop-filter:none!important;
+  -webkit-backdrop-filter:none!important;
+}
+html body .sidebar:not(.adminSidebar):not(.ownerSidebar) .nav button,
+html body .adminSidebar .nav button,
+html body .ownerSidebar .nav button{
+  color:#d5dde6!important;
+  background:transparent!important;
+  background-image:none!important;
+  border:1px solid transparent!important;
+  box-shadow:none!important;
+}
+html body .sidebar .nav button:hover{
+  background:#243656!important;
+  color:#ffffff!important;
+}
+html body .sidebar .nav button.active{
+  background:#1d4ed8!important;
+  color:#ffffff!important;
+}
+
+/* ==== Sidebar brand (product name from branding page) ==== */
+.sidebarBrand{border-bottom:1px solid rgba(255,255,255,.12)!important}
+html body .sidebarBrand b{font-size:15px;letter-spacing:-.2px;color:#ffffff!important}
+html body .sidebarBrand small{margin-top:3px;color:#9db3cf!important;font-size:10px;font-weight:650}
+.sidebarBrand em.sidebarStore{display:block;margin-top:4px;font-style:normal;color:#d5dde6;font-size:11px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sidebottom{border-top:1px solid rgba(255,255,255,.12)!important}
+
+/* ==== Dark-mode theme switch (admin/owner header) ==== */
+[data-theme="dark"] .themeSwitch{background:#334155;color:#f8fafc}
+[data-theme="dark"] .themeSwitch i{transform:translateX(32px);background:#1e293b}
