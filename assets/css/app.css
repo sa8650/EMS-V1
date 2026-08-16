@@ -2296,3 +2296,19 @@ html body .sidebarBrand small{margin-top:3px;color:#9db3cf!important;font-size:1
 /* ==== Dark-mode theme switch (admin/owner header) ==== */
 [data-theme="dark"] .themeSwitch{background:#334155;color:#f8fafc}
 [data-theme="dark"] .themeSwitch i{transform:translateX(32px);background:#1e293b}
+
+
+/* ==== Landing feature grid — Lucide icons + premium badges ==== */
+.featuregrid .featureicon{display:inline-flex!important;align-items:center;justify-content:center;width:46px;height:46px;border-radius:11px;background:#eef4ff;color:var(--blue);font-weight:900;font-size:23px}
+.featuregrid .featureicon .lucide{width:23px;height:23px;display:block}
+.featuregrid article{position:relative}
+.featuregrid article.premium{border-color:#c7d2fe;background:linear-gradient(180deg,#ffffff, #f7f9ff)}
+.featuregrid article.premium .featureicon{background:#e0e7ff;color:#4f46e5}
+.featuretag{position:absolute;top:16px;right:16px;font-style:normal;font-size:10px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;background:linear-gradient(135deg,#6366f1,#4f46e5);color:#fff;padding:4px 9px;border-radius:999px}
+.featuregrid h3{margin:16px 0 7px;font-size:17px;letter-spacing:-.01em}
+.featuregrid p{color:var(--muted);font-size:13.5px;line-height:1.6;margin:0}
+[data-theme="dark"] .featuregrid article{background:#111827;border-color:#1f2937}
+[data-theme="dark"] .featuregrid article.premium{background:linear-gradient(180deg,#111827,#1e1b4b);border-color:#312e81}
+[data-theme="dark"] .featuregrid .featureicon{background:#1f2937;color:#93c5fd}
+[data-theme="dark"] .featuregrid article.premium .featureicon{background:#312e81;color:#c7d2fe}
+[data-theme="dark"] .featuregrid p{color:#9ca3af}
