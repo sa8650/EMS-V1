@@ -2037,3 +2037,36 @@ html body .shell.dash2 .main .flatlist table th{
   color:#383533!important;
   border-bottom:1px solid #BDB9CE!important;
 }
+
+
+/* ==== 2.0 modal — invoice/staff inner sections ==== */
+.modal.d2 .invoiceSection{
+  border-color:#BDB9CE!important;
+  background:transparent!important;
+}
+.modal.d2 .invoiceSection h3{color:#383533!important}
+.modal.d2 .partyFields input,
+.modal.d2 .summarygrid input,
+.modal.d2 .invoiceSection input{
+  background:#ffffff!important;border-color:#BDB9CE!important;color:#383533!important;
+}
+.modal.d2 .permissionbox{
+  background:#ffffff!important;border-color:#BDB9CE!important;color:#383533!important;
+}
+.modal.d2 .permissionbox label{color:#383533!important}
+.modal.d2 .staffmodal .grid2 input,
+.modal.d2 .staffmodal .grid2 select{
+  background:#ffffff!important;border-color:#BDB9CE!important;color:#383533!important;
+}
+
+/* ==== 2.0 top header: user identity group to the RIGHT ==== */
+html body .shell.dash2 .top{
+  justify-content:flex-end!important;
+}
+html body .shell.dash2 .topUser{color:#383533!important}
+
+/* ==== 2.0 navigation panel: border like the header ==== */
+html body .shell.dash2 .sidebar,
+html body .shell.dash2 .adminSidebar{
+  border-right:1px solid rgba(0,0,0,.12)!important;
+}
