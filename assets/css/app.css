@@ -2023,3 +2023,37 @@ html body .shell.dash2 .main .financeBar.due{background:#7c3aed!important;backgr
 html body .shell.dash2 .main .financialCard hr{border-color:#BDB9CE!important}
 /* activity tags: flat light chips */
 html body .shell.dash2 .main .activitytag{background:#ffffff!important;color:#383533!important;box-shadow:none!important}
+
+
+/* ==== Shop Dashboard 2.0 — flat entity list (supplier/customer/expense) ==== */
+html body .shell.dash2 .main .flatlist{
+  background:transparent!important;
+  border:none!important;
+  box-shadow:none!important;
+  padding:0!important;
+}
+html body .shell.dash2 .main .flatsearch{
+  background:#ffffff!important;
+  border:1px solid #D3D1E4!important;
+  border-radius:8px!important;
+  box-shadow:none!important;
+  color:#383533!important;
+  padding:10px 14px!important;
+  margin-bottom:14px!important;
+}
+html body .shell.dash2 .main .flatlist .tablewrap{
+  background:#ffffff!important;
+  border:1px solid #D3D1E4!important;
+  border-radius:8px!important;
+  box-shadow:none!important;
+}
+html body .shell.dash2 .main .flatlist table th{
+  background:#ffffff!important;
+  color:#6b7280!important;
+  border-bottom:1px solid #D3D1E4!important;
+}
+html body .shell.dash2 .main .flatlist table td{
+  background:#ffffff!important;
+  color:#383533!important;
+  border-bottom:1px solid #E8E7EE!important;
+}
