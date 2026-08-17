@@ -1973,3 +1973,53 @@ html body .shell.dash2 .main .financialCard hr{
 html body .shell.dash2 .main .financeBar{background-image:none!important;box-shadow:none!important}
 html body .shell.dash2 .main .financeTrack{background:#ffffff!important}
 html body .shell.dash2 .main .financeGrid i{background:#BDB9CE!important}
+
+
+/* ============================================================
+   Shop Dashboard 2.0 — DEFINITIVE flat cards (beats the ~-combinator
+   glass rules that have 6-class specificity)
+   ============================================================ */
+html body .shell.dash2 .sidebar:not(.adminSidebar):not(.ownerSidebar) ~ .main .cards .card,
+html body .shell.dash2 .sidebar:not(.adminSidebar):not(.ownerSidebar) ~ .main .cards .dashboard-glass,
+html body .shell.dash2 .sidebar:not(.adminSidebar):not(.ownerSidebar) ~ .main .dashboard-glass,
+html body .shell.dash2 .sidebar:not(.adminSidebar):not(.ownerSidebar) ~ .main .financialCard,
+html body .shell.dash2 .sidebar:not(.adminSidebar):not(.ownerSidebar) ~ .main .financialCard.dashboard-glass,
+html body .shell.dash2 .sidebar:not(.adminSidebar):not(.ownerSidebar) ~ .main .activitypanel{
+  background:#D3D1E4!important;
+  background-image:none!important;
+  border:1px solid #BDB9CE!important;
+  border-radius:10px!important;
+  box-shadow:none!important;
+  backdrop-filter:none!important;
+  -webkit-backdrop-filter:none!important;
+  color:#383533!important;
+}
+/* kill the decorative liquid-glass blobs */
+html body .shell.dash2 .sidebar:not(.adminSidebar):not(.ownerSidebar) ~ .main .cards .card:before,
+html body .shell.dash2 .sidebar:not(.adminSidebar):not(.ownerSidebar) ~ .main .cards .card:after,
+html body .shell.dash2 .sidebar:not(.adminSidebar):not(.ownerSidebar) ~ .main .financialCard:before,
+html body .shell.dash2 .sidebar:not(.adminSidebar):not(.ownerSidebar) ~ .main .financialCard:after,
+html body .shell.dash2 .sidebar:not(.adminSidebar):not(.ownerSidebar) ~ .main .activitypanel:before,
+html body .shell.dash2 .sidebar:not(.adminSidebar):not(.ownerSidebar) ~ .main .activitypanel:after,
+html body .shell.dash2 .sidebar:not(.adminSidebar):not(.ownerSidebar) ~ .main .dashboard-glass:before,
+html body .shell.dash2 .sidebar:not(.adminSidebar):not(.ownerSidebar) ~ .main .dashboard-glass:after{
+  display:none!important;content:none!important;
+}
+/* KPI icon chip: flat white */
+html body .shell.dash2 .sidebar:not(.adminSidebar):not(.ownerSidebar) ~ .main .dashboard-glass .kpiicon,
+html body .shell.dash2 .sidebar:not(.adminSidebar):not(.ownerSidebar) ~ .main .cards .card .kpiicon{
+  background:#ffffff!important;
+  background-image:none!important;
+  color:#383533!important;
+  box-shadow:none!important;
+}
+/* finance chart: flat track + grid, solid-colour bars (no gradient) */
+html body .shell.dash2 .main .financeTrack{background:#ffffff!important}
+html body .shell.dash2 .main .financeGrid i{border-color:#BDB9CE!important}
+html body .shell.dash2 .main .financeBar.sales{background:#2563eb!important;background-image:none!important;box-shadow:none!important}
+html body .shell.dash2 .main .financeBar.purchase{background:#d97706!important;background-image:none!important;box-shadow:none!important}
+html body .shell.dash2 .main .financeBar.expense{background:#dc2626!important;background-image:none!important;box-shadow:none!important}
+html body .shell.dash2 .main .financeBar.due{background:#7c3aed!important;background-image:none!important;box-shadow:none!important}
+html body .shell.dash2 .main .financialCard hr{border-color:#BDB9CE!important}
+/* activity tags: flat light chips */
+html body .shell.dash2 .main .activitytag{background:#ffffff!important;color:#383533!important;box-shadow:none!important}
