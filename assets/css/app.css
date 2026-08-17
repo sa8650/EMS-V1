@@ -2354,6 +2354,7 @@ html body .shell.dash2 .adminSidebar{
 
 /* top header: after nav, 74px tall, flat, #D3D1E4 */
 html body .shell.dash2 .top{
+  position:sticky!important;top:0!important;z-index:40!important;
   height:74px!important;min-height:74px!important;max-height:74px!important;
   background:#D3D1E4!important;background-image:none!important;
   border:none!important;box-shadow:none!important;color:#000!important;
@@ -2398,3 +2399,27 @@ html body .shell.dash2 .sidebottom button{color:#000!important}
 html body .shell.dash2 .themeSwitch{color:#000!important}
 html body .shell.dash2 .page{background:transparent!important}
 
+
+/* ==== Shop Dashboard 2.0 — nav text colour + hover/active (high specificity) ==== */
+html body .shell.dash2 .sidebar .nav button,
+html body .shell.dash2 .adminSidebar .nav button,
+html body .shell.dash2 .sidebar:not(.adminSidebar):not(.ownerSidebar) .nav button{
+  color:#383533!important;
+}
+html body .shell.dash2 .sidebar .nav button:hover,
+html body .shell.dash2 .adminSidebar .nav button:hover,
+html body .shell.dash2 .sidebar:not(.adminSidebar):not(.ownerSidebar) .nav button:hover{
+  background:#D3C4D5!important;color:#383533!important;
+}
+html body .shell.dash2 .sidebar .nav button.active,
+html body .shell.dash2 .adminSidebar .nav button.active,
+html body .shell.dash2 .sidebar:not(.adminSidebar):not(.ownerSidebar) .nav button.active{
+  background:#D3C4D5!important;color:#383533!important;border-left:none!important;
+}
+html body .shell.dash2 .menuicon{
+  color:#383533!important;
+}
+html body .shell.dash2 .nav button.active .menuicon,
+html body .shell.dash2 .nav button:hover .menuicon{
+  color:#383533!important;background:transparent!important;
+}
