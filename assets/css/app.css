@@ -1987,3 +1987,53 @@ html body .shell.dash2 .main .flatlist table td{
   color:#383533!important;
   border-bottom:1px solid #E8E7EE!important;
 }
+
+
+/* ==== Shop Dashboard 2.0 — entity/inventory modal (flat 2.0 colours) ==== */
+.modal.d2 .modalbox{
+  background:#E8E7EE!important;
+  background-image:none!important;
+  border:1px solid #D3D1E4!important;
+  border-radius:12px!important;
+  box-shadow:none!important;
+  color:#383533!important;
+}
+.modal.d2 .modalhead{
+  background:#D3D1E4!important;
+  background-image:none!important;
+  margin:-22px -22px 18px!important;
+  padding:14px 22px!important;
+  border-radius:11px 11px 0 0!important;
+  color:#383533!important;
+}
+.modal.d2 .modalhead h2{color:#383533!important}
+.modal.d2 .modalhead button[type=button]{color:#383533!important}
+.modal.d2 .modalbox label{color:#383533!important}
+.modal.d2 .modalbox .muted{color:#6b7280!important}
+.modal.d2 .modalbox input,
+.modal.d2 .modalbox select,
+.modal.d2 .modalbox textarea{
+  background:#ffffff!important;
+  border:1px solid #BDB9CE!important;
+  color:#383533!important;
+  box-shadow:none!important;
+}
+.modal.d2 .modalbox > button{
+  background:#D3D1E4!important;
+  background-image:none!important;
+  color:#383533!important;
+  border:1px solid #BDB9CE!important;
+  box-shadow:none!important;
+}
+.modal.d2 .modalbox > button:hover{
+  background:#D3C4D5!important;
+  color:#383533!important;
+}
+
+/* ==== 2.0 data tables: #D3D1E4 header (th) background ==== */
+html body .shell.dash2 .main table th,
+html body .shell.dash2 .main .flatlist table th{
+  background:#D3D1E4!important;
+  color:#383533!important;
+  border-bottom:1px solid #BDB9CE!important;
+}
