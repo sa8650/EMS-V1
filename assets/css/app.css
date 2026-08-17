@@ -2338,3 +2338,62 @@ html body .sidebarBrand small{margin-top:3px;color:#9db3cf!important;font-size:1
 [data-theme="dark"] .zudoMsg>div{color:#e5e7eb!important}
 [data-theme="dark"] .zudoMsg.assistant>div b.aimd-h1,[data-theme="dark"] .zudoMsg.assistant>div b.aimd-h2,[data-theme="dark"] .zudoMsg.assistant>div b.aimd-h3{color:#f9fafb!important}
 
+
+/* ==== Shop Dashboard 2.0 — flat design ==== */
+html body .shell.dash2{grid-template-columns:220px 1fr!important;min-height:100vh!important;background:#E8E7EE!important;background-image:none!important}
+html body .shell.dash2 .main{background:#E8E7EE!important;background-image:none!important}
+
+/* left navigation panel: full height, 220px, flat, no shadow, #D3D1E4 */
+html body .shell.dash2 .sidebar,
+html body .shell.dash2 .adminSidebar{
+  position:sticky!important;top:0!important;height:100vh!important;
+  background:#D3D1E4!important;background-image:none!important;
+  color:#000!important;border:none!important;box-shadow:none!important;
+  padding:0!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important;
+}
+
+/* top header: after nav, 74px tall, flat, #D3D1E4 */
+html body .shell.dash2 .top{
+  height:74px!important;min-height:74px!important;max-height:74px!important;
+  background:#D3D1E4!important;background-image:none!important;
+  border:none!important;box-shadow:none!important;color:#000!important;
+  padding:0 25px!important;backdrop-filter:none!important;
+}
+html body .shell.dash2 .topHeaderSpacer{display:none!important}
+html body .shell.dash2 .topUser{color:#000!important}
+html body .shell.dash2 .headerProfile{background:#4f46e5!important;color:#fff!important}
+
+/* sidebar brand (black text on flat panel) */
+html body .shell.dash2 .sidebarBrand{
+  color:#000!important;border-bottom:1px solid rgba(0,0,0,.12)!important;
+  padding:14px 16px!important;margin:0!important;
+}
+html body .shell.dash2 .sidebarBrand b{color:#000!important}
+html body .shell.dash2 .sidebarBrand small{color:#333!important}
+html body .shell.dash2 .sidebarBrand em{color:#000!important}
+
+/* nav: buttons 40px, no gap, transparent, black text */
+html body .shell.dash2 .nav{display:flex!important;flex-direction:column!important;gap:0!important;margin:0!important;padding:0!important}
+html body .shell.dash2 .nav button{
+  height:40px!important;min-height:40px!important;max-height:40px!important;
+  margin:0!important;border-radius:0!important;
+  background:transparent!important;background-image:none!important;
+  color:#000!important;border:none!important;box-shadow:none!important;
+  display:flex!important;align-items:center!important;gap:12px!important;
+  padding:0 16px!important;width:100%!important;
+}
+html body .shell.dash2 .nav button:hover{background:#E8E7EE!important;color:#000!important}
+html body .shell.dash2 .nav button.active{background:#E8E7EE!important;color:#000!important;border-left:none!important}
+
+/* icons: transparent, black, flat */
+html body .shell.dash2 .menuicon{background:transparent!important;background-image:none!important;color:#000!important;box-shadow:none!important;width:auto!important;height:auto!important;flex:0 0 auto!important}
+html body .shell.dash2 .menuicon .lucide{width:18px;height:18px}
+html body .shell.dash2 .nav button.active .menuicon{background:transparent!important;color:#000!important}
+
+/* sidebottom (Return to admin / Logout) */
+html body .shell.dash2 .sidebottom{border-top:1px solid rgba(0,0,0,.12)!important;background:transparent!important}
+html body .shell.dash2 .sidebottom button{color:#000!important}
+
+/* theme switch + page background */
+html body .shell.dash2 .themeSwitch{color:#000!important}
+html body .shell.dash2 .page{background:transparent!important}
