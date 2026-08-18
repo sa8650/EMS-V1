@@ -287,6 +287,35 @@ export async function onRequest(context){const {request,env,params}=context, pat
  if(path==='platform/helpdesk/send'&&s.role==='owner'&&method==='POST'){let b=await body(request),content=String(b.content||'').trim(),adminId=b.adminId;if(!adminId||!content)return fail('Administrator and message are required.',400);let [m]=await db(env,'helpdesk_messages',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({admin_id:adminId,sender_type:'owner',content,read_by_admin:false,read_by_owner:true})});return json(m,201)}
  if(path.match(/^platform\/helpdesk\/conversation\/[^/]+$/)&&s.role==='owner'&&method==='GET'){let id=path.split('/')[3];let [admin,msgs]=await Promise.all([db(env,`administrators?id=eq.${id}&select=id,admin_code,name,email,phone`),db(env,`helpdesk_messages?admin_id=eq.${id}&select=*&order=created_at.asc`)]);if(!admin)return fail('Administrator not found.',404);return json({admin:admin[0],messages:msgs})}
  if(path==='platform/helpdesk/read'&&s.role==='owner'&&method==='POST'){let b=await body(request);if(!b.adminId)return fail('Administrator is required.',400);await db(env,`helpdesk_messages?admin_id=eq.${b.adminId}&sender_type=eq.admin&read_by_owner=eq.false`,{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify({read_by_owner:true})});return json({ok:true})}
+
+ if(path==='attendance'){
+  if(!s.storeId)return fail('Shop access required.',403);
+  if(!allowed(s,'staff','view'))return fail('Permission denied.',403);
+  const dhaka=new Date(Date.now()+6*3600*1000);
+  if(method==='GET'){
+    let date=new URL(request.url).searchParams.get('date')||dhaka.toISOString().slice(0,10);
+    let [records,staffs]=await Promise.all([
+      db(env,`attendance?store_id=eq.${s.storeId}&attendance_date=eq.${date}&select=*`),
+      db(env,`staff?store_id=eq.${s.storeId}&select=id,full_name,user_id,position`)
+    ]);
+    let staffMap=Object.fromEntries(staffs.map(x=>[x.id,x]));
+    return json({date,records:records.map(r=>({...r,full_name:staffMap[r.staff_id]?.full_name||'—',user_id:staffMap[r.staff_id]?.user_id||'—',position:staffMap[r.staff_id]?.position||''})),staffs});
+  }
+  if(method==='POST'){
+    if(!allowed(s,'staff','add'))return fail('Permission denied.',403);
+    let b=await body(request),records=Array.isArray(b.records)?b.records:[];
+    if(!b.date)return fail('Date is required.',400);
+    if(!records.length)return fail('Select at least one staff member.',400);
+    let out=[];
+    for(let rec of records){
+      if(!rec.staff_id||!['present','absent'].includes(rec.status))return fail('Invalid attendance entry.',400);
+      let [r]=await db(env,'attendance?on_conflict=staff_id,attendance_date',{method:'POST',headers:{'content-type':'application/json',Prefer:'resolution=merge-duplicates,return=representation'},body:JSON.stringify({store_id:s.storeId,staff_id:rec.staff_id,attendance_date:b.date,status:rec.status,note:rec.note||null,recorded_by:s.id})});
+      out.push(r);
+    }
+    await audit(env,s,'record attendance','attendance',null,{date:b.date,count:out.length});
+    return json(out,201);
+  }
+ }
  let [kind,id]=path.split('/');let table=tables[kind];if(table){let section=perms[kind];if(!allowed(s,section,method==='GET'?'view':method==='POST'?'add':method==='PATCH'?'edit':'delete'))return fail('Permission denied.',403);let filter=`store_id=eq.${s.storeId}`;if(method==='GET'){let records=await db(env,`${table}?${filter}&select=*&order=created_at.desc`);return json(kind==='staff'?records.map(publicStaff):records)}if(method==='POST'){let b=await body(request);if(kind==='staff'){if(!b.password||b.password.length<10)return fail('Staff password must contain at least 10 characters.');b.password_hash=await hash(b.password);delete b.password;b.permissions=normalizePermissions(b.permissions)}if(kind==='inventory'&&!String(b.item_code||'').trim())delete b.item_code;let [r]=await db(env,table,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({...clean(b),store_id:s.storeId,...(kind==='staff'||kind==='supplier'||kind==='customer'||kind==='inventory'?{}:{created_by:s.id})})});await audit(env,s,'create',kind,r.id);return json(kind==='staff'?publicStaff(r):r,201)}if(!id)return fail('Record ID required.');if(method==='PATCH'){let b=await body(request);if(kind==='staff'&&b.password){if(b.password.length<10)return fail('Staff password must contain at least 10 characters.');b.password_hash=await hash(b.password);delete b.password}if(kind==='staff'&&b.permissions)b.permissions=normalizePermissions(b.permissions);let [r]=await db(env,`${table}?id=eq.${id}&${filter}`,{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify(clean(b))});await audit(env,s,'update',kind,id);return json(kind==='staff'?publicStaff(r):r)}if(method==='DELETE'){await db(env,`${table}?id=eq.${id}&${filter}`,{method:'DELETE'});await audit(env,s,'delete',kind,id);return json({ok:true})}}
  return fail('Endpoint not found.',404);
  }catch(e){console.error(e);return fail(e.message||'Unexpected server error.',500)}}
