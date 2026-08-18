@@ -255,24 +255,22 @@ export async function onRequest(context){const {request,env,params}=context, pat
 
  if(path==='dashboard/sales-trend'&&method==='GET'){
   if(!s.storeId)return fail('Choose a store.',400);
-  const now=new Date(),y=now.getFullYear(),m=now.getMonth(); // 0-based current month
-  const daysIn=(yy,mm)=>new Date(yy,mm+1,0).getDate(); // last day of month
+  // Same query shape as the working 'dashboard' route (no date-range filter) — filter in JS.
+  const rows=await db(env,`invoices?store_id=eq.${s.storeId}&kind=eq.sale&select=invoice_date,subtotal&order=invoice_date.asc&limit=5000`);
+  const now=new Date(),y=now.getFullYear(),m=now.getMonth();
+  const daysIn=(yy,mm)=>new Date(yy,mm+1,0).getDate();
   const pad=n=>String(n).padStart(2,'0');
-  const firstCur=pad(1)+'-'+pad(m+1)+'-'+y;
-  const lastCur=pad(daysIn(y,m))+'-'+pad(m+1)+'-'+y;
+  const curDays=daysIn(y,m);
   const prevY=m===0?y-1:y, prevM=m===0?11:m-1;
-  const lastPrev=pad(daysIn(prevY,prevM))+'-'+pad(prevM+1)+'-'+prevY;
-  const firstPrev='01-'+pad(prevM+1)+'-'+prevY;
-  const [curRows,prevRows]=await Promise.all([
-    db(env,`invoices?store_id=eq.${s.storeId}&kind=eq.sale&invoice_date=gte.${firstCur}&invoice_date=lte.${lastCur}&select=invoice_date,subtotal`),
-    db(env,`invoices?store_id=eq.${s.storeId}&kind=eq.sale&invoice_date=gte.${firstPrev}&invoice_date=lte.${lastPrev}&select=invoice_date,subtotal`)
-  ]);
-  const aggr=rows=>{const map={};for(const r of rows){const d=r.invoice_date.slice(8,10);map[d]=(map[d]||0)+Number(r.subtotal||0)}return map};
-  const curMap=aggr(curRows),prevMap=aggr(prevRows);
-  const curDays=daysIn(y,m), prevDays=daysIn(prevY,prevM);
-  const thisMonth=[],prevMonth=[];
-  for(let d=1;d<=curDays;d++){const k=pad(d);thisMonth.push(curMap[k]||0)}
-  for(let d=1;d<=prevDays;d++){const k=pad(d);prevMonth.push(prevMap[k]||0)}
+  const prevDays=daysIn(prevY,prevM);
+  const curPrefix=y+'-'+pad(m+1)+'-', prevPrefix=prevY+'-'+pad(prevM+1)+'-';
+  const thisMonth=new Array(curDays).fill(0), prevMonth=new Array(prevDays).fill(0);
+  for(const r of rows){
+    const d=String(r.invoice_date||''), v=Number(r.subtotal||0);
+    if(!d)continue;
+    if(d.startsWith(curPrefix)){const day=parseInt(d.slice(8,10),10);if(day>=1&&day<=curDays)thisMonth[day-1]+=v}
+    else if(d.startsWith(prevPrefix)){const day=parseInt(d.slice(8,10),10);if(day>=1&&day<=prevDays)prevMonth[day-1]+=v}
+  }
   const thisTotal=thisMonth.reduce((a,b)=>a+b,0), prevTotal=prevMonth.reduce((a,b)=>a+b,0);
   const growthPct=prevTotal>0?((thisTotal-prevTotal)/prevTotal)*100:(thisTotal>0?100:0);
   return json({daysInMonth:curDays,thisMonth,prevMonth,thisTotal,prevTotal,growthPct});
