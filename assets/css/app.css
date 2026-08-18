@@ -2070,3 +2070,31 @@ html body .shell.dash2 .sidebar,
 html body .shell.dash2 .adminSidebar{
   border-right:1px solid rgba(0,0,0,.12)!important;
 }
+
+
+/* ==== 2.0 list pages: title + search + add button in one row ==== */
+html body .shell.dash2 .main .head{
+  display:flex!important;
+  align-items:center!important;
+  gap:12px!important;
+}
+html body .shell.dash2 .main .head h1{
+  margin:0!important;
+  flex:0 0 auto!important;
+  color:#383533!important;
+}
+html body .shell.dash2 .main .head .headsearch{
+  margin-left:auto!important;
+  width:280px!important;
+  max-width:100%!important;
+  flex:0 1 280px!important;
+  background:#ffffff!important;
+  border:1px solid #BDB9CE!important;
+  border-radius:8px!important;
+  box-shadow:none!important;
+  color:#383533!important;
+  padding:10px 14px!important;
+}
+html body .shell.dash2 .main .head > button{
+  flex:0 0 auto!important;
+}
