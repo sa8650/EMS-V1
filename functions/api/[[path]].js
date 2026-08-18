@@ -47,7 +47,7 @@ async function runAI(env,model,messages,temperature=0.3){const m=String(model||'
 
 const tables={supplier:'suppliers',customer:'customers',inventory:'inventory_items',expense:'expenses',staff:'staff'};
 const perms={supplier:'supplier',customer:'customer',inventory:'inventory',expense:'expense',staff:'staff'};
-const PERMISSION_SECTIONS=['dashboard','supplier','customer','inventory','purchase','sales','expense','due_recover','staff','report','settings','connectx','zudo'];
+const PERMISSION_SECTIONS=['dashboard','supplier','customer','inventory','purchase','sales','expense','due_recover','staff','report','settings','connectx','zudo','attendance'];
 const PERMISSION_ACTIONS=['view','add','edit','delete'];
 function normalizePermissions(input){let output={};for(const section of PERMISSION_SECTIONS){let values=Array.isArray(input?.[section])?input[section]:[],actions=section==='zudo'?['view','send','delete']:PERMISSION_ACTIONS;output[section]=actions.filter(action=>values.includes(action));}return output}
 function allowed(s,section,verb){if(s.readOnly&&verb!=='view')return false;if(s.role==='admin'||s.adminAccess)return true;if(section==='dashboard'&&verb==='view')return true;let actions=(s.permissions||{})[section]||[];return actions.includes(verb)||(section==='connectx'&&verb==='send'&&actions.includes('add'))||(section==='zudo'&&verb==='add'&&(actions.includes('send')||actions.includes('add')))}
@@ -290,7 +290,7 @@ export async function onRequest(context){const {request,env,params}=context, pat
 
  if(path==='attendance'){
   if(!s.storeId)return fail('Shop access required.',403);
-  if(!allowed(s,'staff','view'))return fail('Permission denied.',403);
+  if(!allowed(s,'attendance','view'))return fail('Permission denied.',403);
   const dhaka=new Date(Date.now()+6*3600*1000);
   if(method==='GET'){
     let date=new URL(request.url).searchParams.get('date')||dhaka.toISOString().slice(0,10);
@@ -302,7 +302,7 @@ export async function onRequest(context){const {request,env,params}=context, pat
     return json({date,records:records.map(r=>({...r,full_name:staffMap[r.staff_id]?.full_name||'—',user_id:staffMap[r.staff_id]?.user_id||'—',position:staffMap[r.staff_id]?.position||''})),staffs});
   }
   if(method==='POST'){
-    if(!allowed(s,'staff','add'))return fail('Permission denied.',403);
+    if(!allowed(s,'attendance','add'))return fail('Permission denied.',403);
     let b=await body(request),records=Array.isArray(b.records)?b.records:[];
     if(!b.date)return fail('Date is required.',400);
     if(!records.length)return fail('Select at least one staff member.',400);
