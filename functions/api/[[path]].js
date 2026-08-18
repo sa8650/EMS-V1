@@ -252,6 +252,31 @@ export async function onRequest(context){const {request,env,params}=context, pat
  if(path==='dashboard/activity-snapshot'){let id=s.storeId;if(!id)return fail('Shop access required.',403);let since=new Date(Date.now()-86400000).toISOString(),[invoices,expenses,inventory,logs,staffs]=await Promise.all([db(env,`invoices?store_id=eq.${id}&created_at=gte.${since}&select=kind,invoice_number,subtotal,paid_amount,total_due,created_at,created_by`),db(env,`expenses?store_id=eq.${id}&created_at=gte.${since}&select=id,total,paid,due,created_at,created_by`),db(env,`inventory_items?store_id=eq.${id}&select=id,item_code`),db(env,`activity_logs?store_id=eq.${id}&created_at=gte.${since}&entity_type=eq.inventory&select=action,entity_id,actor_id,created_at`),db(env,`staff?store_id=eq.${id}&select=id,user_id`)]);let users=Object.fromEntries(staffs.map(x=>[x.id,x.user_id])),items=Object.fromEntries(inventory.map(x=>[x.id,x.item_code]));let snapshots=[...invoices.map(x=>({label:x.kind==='sale'?'Sale':'Purchase',id:x.invoice_number,total:x.subtotal,paid:x.paid_amount,due:x.total_due,submittedBy:users[x.created_by]||'Administrator',createdAt:x.created_at})),...expenses.map(x=>({label:'Expense',id:'EXP-'+shortId(x.id),total:x.total,paid:x.paid,due:x.due,submittedBy:users[x.created_by]||'Administrator',createdAt:x.created_at})),...logs.filter(x=>items[x.entity_id]).map(x=>({label:'Inventory',id:items[x.entity_id],total:'—',paid:'—',due:'—',submittedBy:users[x.actor_id]||'Administrator',createdAt:x.created_at}))].sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt));return json(snapshots)}
  if(path==='dashboard'){let id=s.storeId;if(!id)return fail('Choose a store.',400);let [store]=await db(env,`stores?id=eq.${id}&select=low_stock_threshold`);let [sales,purchase,expense,low,recent]=await Promise.all([db(env,`invoices?store_id=eq.${id}&kind=eq.sale&select=subtotal,total_due,invoice_date`),db(env,`invoices?store_id=eq.${id}&kind=eq.purchase&select=subtotal,invoice_date`),db(env,`expenses?store_id=eq.${id}&select=total,expense_date`),db(env,`inventory_items?store_id=eq.${id}&active=is.true&select=*&total_stock=lte.${store.low_stock_threshold}`),db(env,`activity_logs?store_id=eq.${id}&select=*&order=created_at.desc&limit=10`)]);let sum=a=>a.reduce((x,y)=>x+Number(y.subtotal??y.total),0),due=a=>a.reduce((x,y)=>x+Number(y.total_due||0),0),today=new Date().toISOString().slice(0,10);return json({sales:{lifetime:sum(sales),today:sum(sales.filter(x=>x.invoice_date===today)),dueLifetime:due(sales),dueToday:due(sales.filter(x=>x.invoice_date===today))},purchase:{lifetime:sum(purchase),today:sum(purchase.filter(x=>x.invoice_date===today))},expense:{lifetime:sum(expense),today:sum(expense.filter(x=>x.expense_date===today))},lowStock:low,recent});}
 
+
+ if(path==='dashboard/sales-trend'&&method==='GET'){
+  if(!s.storeId)return fail('Choose a store.',400);
+  const now=new Date(),y=now.getFullYear(),m=now.getMonth(); // 0-based current month
+  const daysIn=(yy,mm)=>new Date(yy,mm+1,0).getDate(); // last day of month
+  const pad=n=>String(n).padStart(2,'0');
+  const firstCur=pad(1)+'-'+pad(m+1)+'-'+y;
+  const lastCur=pad(daysIn(y,m))+'-'+pad(m+1)+'-'+y;
+  const prevY=m===0?y-1:y, prevM=m===0?11:m-1;
+  const lastPrev=pad(daysIn(prevY,prevM))+'-'+pad(prevM+1)+'-'+prevY;
+  const firstPrev='01-'+pad(prevM+1)+'-'+prevY;
+  const [curRows,prevRows]=await Promise.all([
+    db(env,`invoices?store_id=eq.${s.storeId}&kind=eq.sale&invoice_date=gte.${firstCur}&invoice_date=lte.${lastCur}&select=invoice_date,subtotal`),
+    db(env,`invoices?store_id=eq.${s.storeId}&kind=eq.sale&invoice_date=gte.${firstPrev}&invoice_date=lte.${lastPrev}&select=invoice_date,subtotal`)
+  ]);
+  const aggr=rows=>{const map={};for(const r of rows){const d=r.invoice_date.slice(8,10);map[d]=(map[d]||0)+Number(r.subtotal||0)}return map};
+  const curMap=aggr(curRows),prevMap=aggr(prevRows);
+  const curDays=daysIn(y,m), prevDays=daysIn(prevY,prevM);
+  const thisMonth=[],prevMonth=[];
+  for(let d=1;d<=curDays;d++){const k=pad(d);thisMonth.push(curMap[k]||0)}
+  for(let d=1;d<=prevDays;d++){const k=pad(d);prevMonth.push(prevMap[k]||0)}
+  const thisTotal=thisMonth.reduce((a,b)=>a+b,0), prevTotal=prevMonth.reduce((a,b)=>a+b,0);
+  const growthPct=prevTotal>0?((thisTotal-prevTotal)/prevTotal)*100:(thisTotal>0?100:0);
+  return json({daysInMonth:curDays,thisMonth,prevMonth,thisTotal,prevTotal,growthPct});
+ }
  if(path==='helpdesk'&&s.role==='admin'){
   if(method==='GET'){let msgs=await db(env,`helpdesk_messages?admin_id=eq.${s.id}&select=*&order=created_at.asc`),unread=msgs.filter(m=>m.sender_type==='owner'&&!m.read_by_admin).length;return json({messages:msgs,unread})}
   if(method==='POST'){let b=await body(request),content=String(b.content||'').trim();if(!content)return fail('Message cannot be empty.',400);let [m]=await db(env,'helpdesk_messages',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({admin_id:s.id,sender_type:'admin',content,read_by_admin:true,read_by_owner:false})});await audit(env,s,'send helpdesk message','helpdesk',null,{id:m.id});return json(m,201)}
@@ -267,4 +292,3 @@ export async function onRequest(context){const {request,env,params}=context, pat
  let [kind,id]=path.split('/');let table=tables[kind];if(table){let section=perms[kind];if(!allowed(s,section,method==='GET'?'view':method==='POST'?'add':method==='PATCH'?'edit':'delete'))return fail('Permission denied.',403);let filter=`store_id=eq.${s.storeId}`;if(method==='GET'){let records=await db(env,`${table}?${filter}&select=*&order=created_at.desc`);return json(kind==='staff'?records.map(publicStaff):records)}if(method==='POST'){let b=await body(request);if(kind==='staff'){if(!b.password||b.password.length<10)return fail('Staff password must contain at least 10 characters.');b.password_hash=await hash(b.password);delete b.password;b.permissions=normalizePermissions(b.permissions)}if(kind==='inventory'&&!String(b.item_code||'').trim())delete b.item_code;let [r]=await db(env,table,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({...clean(b),store_id:s.storeId,...(kind==='staff'||kind==='supplier'||kind==='customer'||kind==='inventory'?{}:{created_by:s.id})})});await audit(env,s,'create',kind,r.id);return json(kind==='staff'?publicStaff(r):r,201)}if(!id)return fail('Record ID required.');if(method==='PATCH'){let b=await body(request);if(kind==='staff'&&b.password){if(b.password.length<10)return fail('Staff password must contain at least 10 characters.');b.password_hash=await hash(b.password);delete b.password}if(kind==='staff'&&b.permissions)b.permissions=normalizePermissions(b.permissions);let [r]=await db(env,`${table}?id=eq.${id}&${filter}`,{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify(clean(b))});await audit(env,s,'update',kind,id);return json(kind==='staff'?publicStaff(r):r)}if(method==='DELETE'){await db(env,`${table}?id=eq.${id}&${filter}`,{method:'DELETE'});await audit(env,s,'delete',kind,id);return json({ok:true})}}
  return fail('Endpoint not found.',404);
  }catch(e){console.error(e);return fail(e.message||'Unexpected server error.',500)}}
-
