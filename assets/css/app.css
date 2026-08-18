@@ -2134,7 +2134,7 @@ html body .shell.dash2 .main .salesTrendCard .tgrid{stroke:#BDB9CE!important}
 
 
 /* ==== Attendance page (Shop Dashboard 2.0 colours) ==== */
-.attWrap{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.attWrap{display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start}
 .attPanel{background:#D3D1E4;border:1px solid #BDB9CE;border-radius:10px;padding:0;overflow:hidden}
 .attDivider{height:6px;background:#BDB9CE}
 .attHead{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 18px 8px}
@@ -2151,10 +2151,16 @@ html body .shell.dash2 .main .salesTrendCard .tgrid{stroke:#BDB9CE!important}
 .attMeta{flex:1;min-width:0;display:flex;flex-direction:column}
 .attMeta b{font-size:13px;color:#383533}
 .attMeta small{font-size:11px;color:#6b7280}
-.attSwitch{display:flex;gap:4px}
-.attSwitchRow{display:flex;align-items:center;justify-content:space-between;font-size:13px;color:#383533;font-weight:650}
-.attOpt{border:1px solid #BDB9CE;background:#fff;color:#383533;border-radius:6px;padding:6px 12px;font-size:12px;font-weight:650;box-shadow:none}
-.attOpt.on{background:#4f46e5;color:#fff;border-color:#4f46e5}
+.attSlideRow{display:flex;align-items:center;justify-content:space-between;gap:14px;font-size:13px;color:#383533;font-weight:650}
+.attSlide{display:inline-flex;align-items:center;gap:10px;cursor:pointer}
+.attSlide input{position:absolute;opacity:0;width:1px;height:1px}
+.attSlideTrack{position:relative;width:54px;height:28px;border-radius:999px;background:#BDB9CE;flex:0 0 54px;border:1px solid #9a96ad}
+.attSlideTrack i{position:absolute;left:3px;top:3px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:transform .2s}
+.attSlide input:checked + .attSlideTrack{background:#4f46e5;border-color:#4f46e5}
+.attSlide input:checked + .attSlideTrack i{transform:translateX(26px)}
+.attSlideLabels{display:flex;gap:8px}
+.attSlideLabels b{font-size:12px;font-weight:650;color:#9a96ad}
+.attSlideLabels b.on{color:#4f46e5}
 .attSection2 textarea{background:#fff;border:1px solid #BDB9CE;color:#383533;border-radius:8px}
 .attSection2 label{color:#383533;font-size:13px;font-weight:650}
 #attSave{background:#4f46e5;color:#fff;border:none;border-radius:8px;padding:10px 16px;font-weight:650}
@@ -2164,3 +2170,23 @@ html body .shell.dash2 .main .salesTrendCard .tgrid{stroke:#BDB9CE!important}
 .attBadge.present{background:#e7f6ec;color:#137a3a}
 .attBadge.absent{background:#fdecea;color:#b42318}
 @media(max-width:860px){.attWrap{grid-template-columns:1fr}}
+
+
+/* ==== Staff modal permission toggles — 2.0 colours + border ==== */
+.modal.d2 .permissionbox{border-color:#BDB9CE!important;background:#ffffff!important}
+.modal.d2 .permissionrow{border-bottom-color:#E8E7EE!important}
+.modal.d2 .permissionrow strong{color:#383533!important}
+.modal.d2 .toggleall{background:#D3D1E4!important;color:#383533!important;border:1px solid #BDB9CE!important}
+.modal.d2 .switchlabel{
+  background:#ffffff!important;
+  border:1px solid #BDB9CE!important;
+  color:#6b7280!important;
+  border-radius:16px!important;
+}
+.modal.d2 .switchlabel:has(input:checked){
+  background:#4f46e5!important;
+  border-color:#4f46e5!important;
+  color:#ffffff!important;
+}
+.modal.d2 .switchlabel input{accent-color:#4f46e5!important}
+.modal.d2 .switchlabel:has(input:checked) input{accent-color:#ffffff!important}
