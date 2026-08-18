@@ -2190,3 +2190,17 @@ html body .shell.dash2 .main .salesTrendCard .tgrid{stroke:#BDB9CE!important}
 }
 .modal.d2 .switchlabel input{accent-color:#4f46e5!important}
 .modal.d2 .switchlabel:has(input:checked) input{accent-color:#ffffff!important}
+
+
+/* ==== Vaultium (Shop Dashboard 2.0 colours) ==== */
+.vaultCards{display:grid;grid-template-columns:repeat(3,1fr);gap:15px}
+.vaultBar{height:10px;background:#D3D1E4;border:1px solid #BDB9CE;border-radius:999px;margin-top:14px;overflow:hidden}
+.vaultBar i{display:block;height:100%;background:#4f46e5;border-radius:999px;transition:width .4s}
+.vaultAttach{display:flex;flex-direction:column;gap:10px}
+.vaultPick{display:inline-flex;align-items:center;gap:8px;padding:10px 14px;border:1px dashed #BDB9CE;border-radius:8px;background:#fff;color:#383533;font-size:13px;font-weight:650;cursor:pointer}
+.vaultPick input{display:none}
+.vaultSelected{display:flex;flex-wrap:wrap;gap:8px}
+.vaultChip{display:inline-flex;align-items:center;gap:8px;background:#D3D1E4;border:1px solid #BDB9CE;border-radius:999px;padding:5px 6px 5px 12px;font-size:12px;color:#383533}
+.vaultChip small{color:#6b7280}
+.vaultX{border:0;background:#BDB9CE;color:#383533;width:20px;height:20px;border-radius:50%;font-size:13px;line-height:1;padding:0;cursor:pointer;flex:0 0 20px}
+@media(max-width:860px){.vaultCards{grid-template-columns:1fr}}
