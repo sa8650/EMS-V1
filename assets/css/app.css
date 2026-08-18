@@ -2098,3 +2098,36 @@ html body .shell.dash2 .main .head .headsearch{
 html body .shell.dash2 .main .head > button{
   flex:0 0 auto!important;
 }
+
+
+/* ==== Sales Trend chart (Shop Dashboard) ==== */
+.salesTrendCard{margin-top:18px}
+.trendHead{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:12px}
+.trendHead h2{margin:0;font-size:18px;color:#383533}
+.trendHead small{display:block;margin-top:3px;color:#6b7280;font-size:12px}
+.trendGrowth{flex:0 0 auto;font-size:13px;font-weight:750;padding:5px 11px;border-radius:999px}
+.trendGrowth.up{background:#e7f6ec;color:#137a3a}
+.trendGrowth.down{background:#fdecea;color:#b42318}
+.trendLegend{display:flex;gap:18px;margin-bottom:10px;font-size:12px;color:#383533}
+.trendLegend .lgi{display:inline-flex;align-items:center;gap:7px}
+.trendLegend .ldot{width:11px;height:11px;border-radius:50%;display:inline-block}
+.ldot1{background:#6366f1}
+.ldot2{background:#cbd5e1;border:1px dashed #94a3b8}
+.trendSvg{width:100%;height:auto;display:block}
+.tline{fill:none;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}
+.tline1{stroke:#6366f1}
+.tline2{stroke:#94a3b8;stroke-dasharray:5 5;stroke-width:2}
+.tarea{fill:url(#trg1)}
+.tdot{fill:#6366f1;stroke:#fff;stroke-width:1}
+.tgrid{stroke:#E8E7EE;stroke-width:1}
+.tylab{fill:#6b7280;font-size:11px}
+.txlab{fill:#6b7280;font-size:11px}
+
+/* 2.0 flat variant: card background #D3D1E4 */
+html body .shell.dash2 .main .salesTrendCard{
+  background:#D3D1E4!important;background-image:none!important;
+  border:1px solid #BDB9CE!important;border-radius:10px!important;box-shadow:none!important;
+}
+html body .shell.dash2 .main .salesTrendCard h2{color:#383533!important}
+html body .shell.dash2 .main .salesTrendCard small{color:#6b7280!important}
+html body .shell.dash2 .main .salesTrendCard .tgrid{stroke:#BDB9CE!important}
