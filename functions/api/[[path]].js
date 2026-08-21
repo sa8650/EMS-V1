@@ -334,13 +334,12 @@ let s=await session(request,env.SESSION_SECRET);if(!s)return fail('Please sign i
   if(!allowed(s,'attendance','view'))return fail('Permission denied.',403);
   const dhaka=new Date(Date.now()+6*3600*1000);
   if(method==='GET'){
-    let date=new URL(request.url).searchParams.get('date')||dhaka.toISOString().slice(0,10);
     let [records,staffs]=await Promise.all([
-      db(env,`attendance?store_id=eq.${s.storeId}&attendance_date=eq.${date}&select=*`),
+      db(env,`attendance?store_id=eq.${s.storeId}&select=*&order=attendance_date.desc,created_at.desc&limit=2000`),
       db(env,`staff?store_id=eq.${s.storeId}&select=id,full_name,user_id,position`)
     ]);
     let staffMap=Object.fromEntries(staffs.map(x=>[x.id,x]));
-    return json({date,records:records.map(r=>({...r,full_name:staffMap[r.staff_id]?.full_name||'—',user_id:staffMap[r.staff_id]?.user_id||'—',position:staffMap[r.staff_id]?.position||''})),staffs});
+    return json({date:dhaka.toISOString().slice(0,10),records:records.map(r=>({...r,full_name:staffMap[r.staff_id]?.full_name||'—',user_id:staffMap[r.staff_id]?.user_id||'—',position:staffMap[r.staff_id]?.position||''})),staffs});
   }
   if(method==='POST'){
     if(!allowed(s,'attendance','add'))return fail('Permission denied.',403);
