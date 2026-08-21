@@ -2214,3 +2214,43 @@ html body .shell.dash2 .main .salesTrendCard .tgrid{stroke:#BDB9CE!important}
 .vaultPreviewBox .modalhead button{color:#383533!important}
 .vaultPreviewBody{padding:16px;display:flex;align-items:center;justify-content:center;background:#f7f8fa;max-height:72vh;overflow:auto}
 .vaultPreviewBody img{max-width:100%;max-height:68vh;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.12);display:block}
+
+
+/* ==== License cards — RGB gradient border (admin + landing pricing) ==== */
+.licensecard,.price{
+  border:2px solid transparent!important;
+  background:
+    linear-gradient(#ffffff,#ffffff) padding-box,
+    linear-gradient(120deg,#6366f1,#8b5cf6,#ec4899,#f59e0b) border-box!important;
+  box-shadow:0 4px 14px rgba(99,102,241,.08)!important;
+}
+.licensecard:hover,.price:hover{box-shadow:0 10px 24px rgba(99,102,241,.16)!important}
+[data-theme="dark"] .licensecard,[data-theme="dark"] .price{
+  background:
+    linear-gradient(#1f2937,#1f2937) padding-box,
+    linear-gradient(120deg,#6366f1,#8b5cf6,#ec4899,#f59e0b) border-box!important;
+}
+
+/* ==== Attendance saved-list header (search beside title) ==== */
+.attListHead{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+.attListHead h2{margin:0;font-size:16px;color:#383533}
+.attListHead .headsearch{width:260px;background:#fff;border:1px solid #BDB9CE;border-radius:8px;color:#383533;padding:9px 12px}
+
+
+/* ==== Store management — card grid (better view) ==== */
+.storeHead{margin-bottom:14px}
+.storeHead .headsearch{width:320px;max-width:100%}
+.storeGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px}
+.storeCard{background:#fff;border:1px solid var(--line);border-radius:12px;padding:18px;display:flex;flex-direction:column;gap:12px;box-shadow:0 1px 3px rgba(16,24,40,.05)}
+.storeCard:hover{box-shadow:0 8px 20px rgba(16,24,40,.1)}
+.storeCardTop{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.storeCardTitle h3{margin:0 0 4px;font-size:16px;color:#111}
+.storeCardTitle .shopid{font-size:12px}
+.storeCardMeta{display:flex;flex-direction:column;gap:4px;font-size:12px;color:#6b7280}
+.storeCardMeta span{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.storeCardFeats{display:flex;flex-wrap:wrap;gap:6px}
+.stFeat{font-size:11px;font-weight:650;padding:3px 9px;border-radius:999px;border:1px solid #e5e7eb}
+.stFeat.on{background:#e7f6ec;color:#137a3a;border-color:#b6e2c7}
+.stFeat.off{background:#f1f3f5;color:#9aa3ad}
+.storeCardActions{display:flex;gap:8px;margin-top:auto}
+.storeCardActions button{flex:1;padding:8px 10px;font-size:12px}
