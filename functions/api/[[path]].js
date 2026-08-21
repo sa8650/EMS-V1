@@ -7,6 +7,8 @@ const unb64=s=>Uint8Array.from(atob(s.replace(/-/g,'+').replace(/_/g,'/')+'='.re
 async function hmac(v,key){return crypto.subtle.sign('HMAC',await crypto.subtle.importKey('raw',enc.encode(key),{name:'HMAC',hash:'SHA-256'},false,['sign']),enc.encode(v));}
 async function token(payload,key){let h=b64u(enc.encode(JSON.stringify({alg:'HS256',typ:'JWT'}))),p=b64u(enc.encode(JSON.stringify(payload)));return h+'.'+p+'.'+b64u(await hmac(h+'.'+p,key));}
 async function session(req,key){let x=req.headers.get('authorization')?.replace('Bearer ',''); if(!x)return null;let [h,p,s]=x.split('.');if(!h||!p||!s||b64u(await hmac(h+'.'+p,key))!==s)return null;let d=JSON.parse(dec.decode(unb64(p)));return d.exp>Date.now()/1000?d:null;}
+async function decodeSigned(t,key){if(!t)return null;let [h,p,s]=String(t).split('.');if(!h||!p||!s)return null;try{if(b64u(await hmac(h+'.'+p,key))!==s)return null;let d=JSON.parse(dec.decode(unb64(p)));return d.exp>Date.now()/1000?d:null}catch{return null}}
+async function sendBrevo(env,to,subject,html){try{if(!env.BREVO_API_KEY||!to)return false;let [cfg]=await db(env,'connectx_settings?select=*');let from=cfg?.from_email||'no-reply@ems.local',name=cfg?.from_name||'EMS V1';let res=await fetch('https://api.brevo.com/v3/smtp/email',{method:'POST',headers:{'api-key':env.BREVO_API_KEY,'content-type':'application/json'},body:JSON.stringify({sender:{name,email:from},to:[{email:to}],subject,htmlContent:html})});return res.ok}catch{return false}}
 const PBKDF2_ITERATIONS=100000; /* Cloudflare Workers WebCrypto maximum */
 async function hash(password,salt=b64u(crypto.getRandomValues(new Uint8Array(16)))){let bits=await crypto.subtle.deriveBits({name:'PBKDF2',salt:enc.encode(salt),iterations:PBKDF2_ITERATIONS,hash:'SHA-256'},await crypto.subtle.importKey('raw',enc.encode(password),'PBKDF2',false,['deriveBits']),256);return `pbkdf2$${PBKDF2_ITERATIONS}$${salt}$${b64u(bits)}`;}
 async function check(password,stored){let [,i,s,v]=stored.split('$'),iterations=+i;if(!iterations||iterations>PBKDF2_ITERATIONS)return false;let bits=await crypto.subtle.deriveBits({name:'PBKDF2',salt:enc.encode(s),iterations,hash:'SHA-256'},await crypto.subtle.importKey('raw',enc.encode(password),'PBKDF2',false,['deriveBits']),256);return b64u(bits)===v;}
@@ -68,7 +70,44 @@ export async function onRequest(context){const {request,env,params}=context, pat
  if(path==='public/branding'&&method==='GET'){ let [x]=await db(env,'platform_settings?setting_key=eq.branding&select=setting_value');return json(x?.setting_value||{product_name:'EMS V1',powered_by:'DoxTox',website_name:'EMS V1',public_base_url:''});}
  if(path==='public/license-plans'&&method==='GET'){return json(await db(env,'license_plans?active=is.true&select=id,title,duration_months,max_stores,benefits,price,connectx_enabled,connectx_daily_limit,zudo_enabled,zudo_daily_limit,business_health_enabled,business_health_daily_limit,truebill_enabled,vaultium_gb&order=price.asc'));}
  if(path.startsWith('public/invoice/')&&method==='GET'){let token=path.split('/')[2],[invoice]=await db(env,`invoices?verification_token=eq.${encodeURIComponent(token)}&select=*,stores(name,address,phone,phone2,email,website),invoice_lines(*,inventory_items(item_code,description,unit))`);if(!invoice)return fail('Invoice verification record was not found.',404);await db(env,'truebill_scans',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({store_id:invoice.store_id||null,invoice_id:invoice.id,invoice_number:invoice.invoice_number,invoice_kind:invoice.kind,ip_address:request.headers.get('cf-connecting-ip')||null,user_agent:request.headers.get('user-agent')||null})}).catch(()=>{});let table=invoice.kind==='sale'?'customers':'suppliers',[party]=invoice.party_id?await db(env,`${table}?id=eq.${invoice.party_id}&select=*`):[];return json({verified:true,invoice,party:party||null})}
- let s=await session(request,env.SESSION_SECRET);if(!s)return fail('Please sign in.',401);if(s.role==='staff'&&!s.adminAccess){let [currentStaff]=await db(env,`staff?id=eq.${s.id}&store_id=eq.${s.storeId}&select=active,permissions`);if(!currentStaff||!currentStaff.active)return fail('This user account is deactivated. Contact your shop administrator.',403);s.permissions=normalizePermissions(currentStaff.permissions||{})}if(s.storeId){let [sessionStore]=await db(env,`stores?id=eq.${s.storeId}&select=admin_id,status`);if(sessionStore){const ent=await enforceEntitlement(env,sessionStore.admin_id);s.readOnly=s.readOnly||sessionStore.status==='read_only'||!ent;s.licenseExpired=!ent}}
+ 
+ if(path==='auth/forgot-password'&&method==='POST'){
+  let b=await body(request),type=b.type,email=(b.email||'').trim().toLowerCase(),otp=String(crypto.getRandomValues(new Uint32Array(1))[0]%900000+100000);
+  let found=null,account=null;
+  if(type==='admin'){let [a]=await db(env,`administrators?email=eq.${encodeURIComponent(email)}&select=id,email,active`);if(a){found={email:a.email,type:'admin'};account=a}}
+  else if(type==='owner'){let [o]=await db(env,`ems_owners?email=eq.${encodeURIComponent(email)}&select=id,email,active`);if(o){found={email:o.email,type:'owner'};account=o}}
+  else if(type==='staff'){let [store]=await db(env,`stores?shop_code=eq.${encodeURIComponent(b.shopCode||'')}&select=id`);if(store){let [st]=await db(env,`staff?store_id=eq.${store.id}&email=eq.${encodeURIComponent(email)}&select=id,email,active,full_name`);if(st){found={email:st.email,type:'staff',storeId:store.id};account=st}}}
+  if(!found)return json({ok:true,resetToken:null,note:'If the account exists, an OTP was sent.'});
+  let otpHash=b64u(await hmac(otp,env.SESSION_SECRET));
+  let resetToken=await token({email:found.email,type:found.type,storeId:found.storeId||null,otpHash,exp:Math.floor(Date.now()/1000)+600},env.SESSION_SECRET);
+  let label=type==='owner'?'EMS Owner':type==='admin'?'Administrator':'Shop staff';
+  await sendBrevo(env,found.email,'Your EMS password reset code',`<div style="font-family:Arial,sans-serif;color:#111;line-height:1.6"><h2 style="margin:0 0 10px">Password reset</h2><p>Use this one-time code to reset your ${label} password:</p><p style="font-size:28px;letter-spacing:6px;font-weight:bold;color:#1d4ed8">${otp}</p><p style="color:#666;font-size:13px">This code expires in 10 minutes. If you did not request this, ignore this email.</p></div>`);
+  return json({ok:true,resetToken});
+ }
+ if(path==='auth/verify-otp'&&method==='POST'){
+  let b=await body(request),t=b.resetToken,otp=String(b.otp||'').trim();
+  if(!t||!otp)return fail('Reset token and OTP are required.',400);
+  let d=await decodeSigned(t,env.SESSION_SECRET);
+  if(!d)return fail('Reset code is invalid or has expired.',401);
+  let h=b64u(await hmac(otp,env.SESSION_SECRET));
+  if(h!==d.otpHash)return fail('Incorrect OTP.',401);
+  return json({ok:true});
+ }
+ if(path==='auth/reset-password'&&method==='POST'){
+  let b=await body(request),t=b.resetToken,pw=String(b.password||''),pw2=String(b.password2||'');
+  if(!t)return fail('Reset token is required.',400);
+  if(pw.length<10)return fail('Password must contain at least 10 characters.',400);
+  if(pw!==pw2)return fail('Passwords do not match.',400);
+  let d=await decodeSigned(t,env.SESSION_SECRET);
+  if(!d)return fail('Reset code is invalid or has expired.',401);
+  let ph=await hash(pw);
+  if(d.type==='admin'){await db(env,`administrators?email=eq.${encodeURIComponent(d.email)}`,{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify({password_hash:ph})})}
+  else if(d.type==='owner'){await db(env,`ems_owners?email=eq.${encodeURIComponent(d.email)}`,{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify({password_hash:ph})})}
+  else if(d.type==='staff'&&d.storeId){await db(env,`staff?store_id=eq.${d.storeId}&email=eq.${encodeURIComponent(d.email)}`,{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify({password_hash:ph})})}
+  else return fail('Account not found.',404);
+  return json({ok:true});
+ }
+let s=await session(request,env.SESSION_SECRET);if(!s)return fail('Please sign in.',401);if(s.role==='staff'&&!s.adminAccess){let [currentStaff]=await db(env,`staff?id=eq.${s.id}&store_id=eq.${s.storeId}&select=active,permissions`);if(!currentStaff||!currentStaff.active)return fail('This user account is deactivated. Contact your shop administrator.',403);s.permissions=normalizePermissions(currentStaff.permissions||{})}if(s.storeId){let [sessionStore]=await db(env,`stores?id=eq.${s.storeId}&select=admin_id,status`);if(sessionStore){const ent=await enforceEntitlement(env,sessionStore.admin_id);s.readOnly=s.readOnly||sessionStore.status==='read_only'||!ent;s.licenseExpired=!ent}}
  if(path==='me')return json(s);
  if(path==='platform/overview'){if(s.role!=='owner')return fail('Forbidden',403);let [admins,stores,licenses]=await Promise.all([db(env,'administrators?select=id,admin_code,name,email,phone,active,created_at&order=created_at.desc'),db(env,'stores?select=id,name,shop_code,status,admin_id,created_at,administrators(name,email,admin_code)&order=created_at.desc'),db(env,'licenses?select=*,administrators:administrators!licenses_admin_id_fkey(name,email,admin_code),stores(name,shop_code)&order=created_at.desc')]);return json({admins,stores,licenses});}
  if(path.startsWith('platform/administrator/')){if(s.role!=='owner')return fail('Forbidden',403);let id=path.split('/')[2];if(method==='PATCH'){let b=await body(request);let [x]=await db(env,`administrators?id=eq.${id}`,{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify(clean({active:b.active}))});await db(env,'platform_activity_logs',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({owner_id:s.id,action:b.active?'activate administrator':'deactivate administrator',entity_type:'administrator',entity_id:id})});return json({id:x.id,name:x.name,email:x.email,active:x.active})}}
