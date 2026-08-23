@@ -51,7 +51,7 @@ async function runAI(env,model,messages,temperature=0.3){const m=String(model||'
 
 const tables={supplier:'suppliers',customer:'customers',inventory:'inventory_items',expense:'expenses',staff:'staff'};
 const perms={supplier:'supplier',customer:'customer',inventory:'inventory',expense:'expense',staff:'staff'};
-const PERMISSION_SECTIONS=['dashboard','supplier','customer','inventory','purchase','sales','expense','due_recover','staff','report','settings','connectx','zudo','attendance','vaultium'];
+const PERMISSION_SECTIONS=['dashboard','supplier','customer','inventory','purchase','sales','expense','due_recover','staff','report','settings','connectx','zudo','attendance','salary','vaultium'];
 const PERMISSION_ACTIONS=['view','add','edit','delete'];
 function normalizePermissions(input){let output={};for(const section of PERMISSION_SECTIONS){let values=Array.isArray(input?.[section])?input[section]:[],actions=section==='zudo'?['view','send','delete']:PERMISSION_ACTIONS;output[section]=actions.filter(action=>values.includes(action));}return output}
 function allowed(s,section,verb){if(s.readOnly&&verb!=='view')return false;if(s.role==='admin'||s.adminAccess)return true;if(section==='dashboard'&&verb==='view')return true;let actions=(s.permissions||{})[section]||[];return actions.includes(verb)||(section==='connectx'&&verb==='send'&&actions.includes('add'))||(section==='zudo'&&verb==='add'&&(actions.includes('send')||actions.includes('add')))}
@@ -396,6 +396,72 @@ let s=await session(request,env.SESSION_SECRET);if(!s)return fail('Please sign i
   }
  }
 
+ if(path==='salary'||path.startsWith('salary/')){
+  if(!s.storeId)return fail('Shop access required.',403);
+  if(!allowed(s,'salary','view'))return fail('Permission denied.',403);
+  if(method==='GET'){
+    const url=new URL(request.url);
+    let staffs=await db(env,`staff?store_id=eq.${s.storeId}&select=id,full_name,position,phone,email,user_id,basic_salary,active,created_at&order=created_at.asc`);
+    let staffId=url.searchParams.get('staff_id'),month=url.searchParams.get('month')||'';
+    let invoices=[],attendance={present:0,total:0};
+    if(staffId&&staffs.some(x=>x.id===staffId)){
+      let from,to;
+      if(/^\d{4}-\d{2}$/.test(month)){let [y,m]=month.split('-').map(Number);from=new Date(Date.UTC(y,m-1,1)).toISOString().slice(0,10);to=new Date(Date.UTC(y,m,1)).toISOString().slice(0,10);}
+      else{let d=new Date();from=new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth(),1)).toISOString().slice(0,10);to=new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth()+1,1)).toISOString().slice(0,10);}
+      let [inv,att]=await Promise.all([
+        db(env,`staff_salary_invoices?store_id=eq.${s.storeId}&staff_id=eq.${staffId}&select=*&order=created_at.desc&limit=200`),
+        db(env,`attendance?store_id=eq.${s.storeId}&staff_id=eq.${staffId}&attendance_date=gte.${from}&attendance_date=lt.${to}&select=status`).then(rows=>({present:rows.filter(x=>x.status==='present').length,total:rows.length}))
+      ]);
+      invoices=inv;attendance=att;
+    }
+    let all=await db(env,`staff_salary_invoices?store_id=eq.${s.storeId}&select=staff_id,invoice_type,total,paid,due,created_at&order=created_at.desc&limit=5000`);
+    let year=new Date().getUTCFullYear(),summary={};
+    for(let st of staffs){
+      let rows=all.filter(x=>x.staff_id===st.id);
+      summary[st.id]={
+        monthly:Number(st.basic_salary||0),
+        outstandingDue:Math.round(rows.reduce((a,x)=>a+Number(x.due||0),0)*100)/100,
+        takenAdvance:Math.round(rows.filter(x=>x.invoice_type==='advance').reduce((a,x)=>a+Number(x.total||0),0)*100)/100,
+        totalPaidYTD:Math.round(rows.filter(x=>new Date(x.created_at).getUTCFullYear()===year).reduce((a,x)=>a+Number(x.paid||0),0)*100)/100
+      };
+    }
+    return json({staffs,summary,invoices,attendance});
+  }
+  if(method==='POST'&&path==='salary'){
+    if(!allowed(s,'salary','add'))return fail('Permission denied.',403);
+    let b=await body(request);
+    let [person]=await db(env,`staff?id=eq.${b.staff_id}&store_id=eq.${s.storeId}&select=id,basic_salary`);
+    if(!person)return fail('Staff member not found in this shop.',404);
+    if(!['current','due','advance'].includes(b.invoice_type))return fail('Invalid invoice type.',400);
+    if(!/^\d{4}-\d{2}$/.test(b.salary_month||''))return fail('Salary month (YYYY-MM) is required.',400);
+    const num=x=>Math.max(0,Number(x)||0);
+    let all=await db(env,`staff_salary_invoices?store_id=eq.${s.storeId}&staff_id=eq.${b.staff_id}&select=invoice_type,total,due`);
+    let outstanding=all.reduce((a,x)=>a+Number(x.due||0),0);
+    let advanceTaken=all.filter(x=>x.invoice_type==='advance').reduce((a,x)=>a+Number(x.total||0),0);
+    let base=b.invoice_type==='advance'?0:num(b.base_amount),total,paid;
+    if(b.invoice_type==='advance'){total=num(b.paid);paid=total;}
+    else{
+      total=base+num(b.incentive)+num(b.bonus)-num(b.fine)-num(b.other_deduction);
+      if(b.add_outstanding)total+=outstanding;
+      if(b.cut_advance)total-=advanceTaken;
+      if(total<0)total=0;
+      paid=Math.min(num(b.paid),total);
+    }
+    let rec={store_id:s.storeId,staff_id:person.id,salary_month:b.salary_month+'-01',invoice_type:b.invoice_type,base_amount:base,attendance_based:!!b.attendance_based,present_days:Number.isInteger(b.present_days)?b.present_days:null,total_days:Number.isInteger(b.total_days)?b.total_days:null,incentive:num(b.incentive),bonus:num(b.bonus),fine:num(b.fine),other_deduction:num(b.other_deduction),add_outstanding:!!b.add_outstanding,cut_advance:!!b.cut_advance,total:Math.round(total*100)/100,paid:Math.round(paid*100)/100,note:b.note?String(b.note).slice(0,500):null,created_by:s.id};
+    let [out]=await db(env,'staff_salary_invoices',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(rec)});
+    await audit(env,s,'create salary invoice','staff_salary',out.id,{staff_id:person.id,type:b.invoice_type,total:rec.total});
+    return json(out,201);
+  }
+  if(method==='DELETE'&&path.startsWith('salary/')){
+    if(!allowed(s,'salary','delete'))return fail('Permission denied.',403);
+    let id=path.split('/')[1];
+    let [rec]=await db(env,`staff_salary_invoices?id=eq.${id}&store_id=eq.${s.storeId}&select=id`);
+    if(!rec)return fail('Salary invoice not found.',404);
+    await db(env,`staff_salary_invoices?id=eq.${id}`,{method:'DELETE'});
+    await audit(env,s,'delete salary invoice','staff_salary',id,{});
+    return json({ok:true});
+  }
+ }
  if(path==='vaultium/availability'&&method==='GET'){if(!s.storeId)return fail('Shop access required.',403);let [store]=await db(env,`stores?id=eq.${s.storeId}&select=admin_id`),adminId=store?.admin_id;let [plan,usedRows,ever]=await Promise.all([vaultiumPlan(env,s.storeId),adminId?db(env,`vaultium_files?admin_id=eq.${adminId}&select=size_bytes`):[],featureEver(env,s.storeId,'vaultium')]);let used=(usedRows||[]).reduce((n,r)=>n+Number(r.size_bytes||0),0);return json({enabled:!!plan,ever,gb:plan?plan.gb:0,used,usedFormatted:(used/GB).toFixed(2),expiresAt:plan?plan.expires_at:null})}
  if(path==='vaultium/files'&&method==='GET'){if(!s.storeId)return fail('Shop access required.',403);if(!allowed(s,'vaultium','view'))return fail('Permission denied.',403);let q=new URL(request.url).searchParams.get('q');let [store]=await db(env,`stores?id=eq.${s.storeId}&select=admin_id`),adminId=store?.admin_id;let rows=await db(env,`vaultium_files?store_id=eq.${s.storeId}&select=id,invoice_id,invoice_number,filename,content_type,size_bytes,created_at&order=created_at.desc&limit=500`);if(q){q=q.toLowerCase();rows=rows.filter(r=>(r.invoice_number||'').toLowerCase().includes(q)||(r.filename||'').toLowerCase().includes(q)||(r.invoice_id||'').startsWith(q))}return json(rows)}
  if(path==='vaultium/usage'&&method==='GET'){if(!s.storeId)return fail('Shop access required.',403);let [store]=await db(env,`stores?id=eq.${s.storeId}&select=admin_id`),adminId=store?.admin_id;let rows=await db(env,`vaultium_files?admin_id=eq.${adminId}&select=size_bytes`),used=rows.reduce((n,r)=>n+Number(r.size_bytes||0),0),plan=await vaultiumPlan(env,s.storeId);return json({used,usedGB:(used/GB).toFixed(2),gb:plan?plan.gb:0})}
