@@ -2282,3 +2282,8 @@ html body .shell.dash2 .main .salesTrendCard .tgrid{stroke:#BDB9CE!important}
 .duesummary{padding:12px 14px;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:10px;margin-bottom:14px}
 .duesummary p{margin:4px 0;font-size:13px}
 .duetabs{display:flex;gap:8px;margin-bottom:14px}
+
+/* Due recovery history + recover modal */
+.dueRecoverBox{width:min(1180px,96vw)!important;max-height:94vh!important;overflow:auto!important}
+.dueshort table{min-width:420px}.dueshort tr{cursor:pointer}.dueshort tr.selected td{background:#eef6ff!important}.dueshort td small{display:block;color:#6b7280;font-size:11px;margin-top:3px}.dueshort td{white-space:normal}.dueRecoverBox .dueworkspace{grid-template-columns:minmax(360px,42%) minmax(0,1fr)}
+@media(max-width:820px){.dueRecoverBox{width:100%!important}.dueRecoverBox .dueworkspace{grid-template-columns:1fr}.dueRecoverBox .dueleft{max-height:none}}
