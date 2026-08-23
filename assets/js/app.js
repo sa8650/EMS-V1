@@ -92,6 +92,15 @@ function showEmsLogin(){let layer=$('#authlayer');layer.hidden=false;layer.inner
 function emsRegister(){let layer=$('#authlayer');layer.innerHTML=`<div class="authmodal"><button class="close" id="closeAuth">×</button><p class="eyebrow">ONE-TIME INITIALIZATION</p><form class="fields" id="ownerform"><h2>Create EMS owner</h2><p class="muted">This is available only while no EMS owner exists. Use a private, strong password.</p><label>Name<input name="name" required></label><label>Email<input name="email" type="email" required></label><label>Password <span class="muted">(12+ characters)</span><input name="password" type="password" minlength="12" required></label><button>Initialize EMS owner</button><button class="linkbutton" type="button" id="backEms">Back to EMS login</button></form></div>`;$('#closeAuth').onclick=()=>layer.hidden=true;$('#backEms').onclick=showEmsLogin;$('#ownerform').onsubmit=async e=>{e.preventDefault();try{save(await api('auth/ems/register',{method:'POST',body:JSON.stringify(Object.fromEntries(new FormData(e.target)))}));home()}catch(x){toast(x.message)}}}
 function register(){let layer=$('#authlayer');layer.hidden=false;layer.innerHTML=`<div class="authmodal"><button class="close" id="closeAuth">×</button><p class="eyebrow">START WITH EMS V1</p><form class="fields" id="reg"><h2>Create administrator account</h2><div class="grid2"><label>Full name<input name="name" required></label><label>Phone<input name="phone" required></label></div><label>Address<textarea name="address"></textarea></label><label>Email<input name="email" type="email" required></label><label>Password <span class="muted">(10+ characters)</span><input name="password" type="password" minlength="10" required></label><button>Create account</button><button type="button" class="linkbutton" id="backLogin">Back to sign in</button></form></div>`;$('#closeAuth').onclick=()=>layer.hidden=true;$('#backLogin').onclick=()=>showAuth('admin');$('#reg').onsubmit=async e=>{e.preventDefault();try{save(await api('auth/admin/register',{method:'POST',body:JSON.stringify(Object.fromEntries(new FormData(e.target)))}));home()}catch(x){toast(x.message)}}}
 const LUCIDE={
+search:'<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
+briefcase:'<rect width="20" height="14" x="2" y="7" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/>',
+calendar:'<rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>',
+clock:'<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
+banknote:'<rect width="20" height="12" x="2" y="6" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/>',
+filetext:'<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/>',
+history:'<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/>',
+save:'<path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/>',
+undo:'<path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/>',
 dashboard:'<rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/>',
 truck:'<path d="M5 18H3a1 1 0 0 1-1-1V7a2 2 0 0 1 2-2h11a2 2 0 0 1 2 2v10a1 1 0 0 1-1 1h-2"/><path d="M15 9h3l3 3v5a1 1 0 0 1-1 1h-2"/><circle cx="7" cy="18" r="2"/><circle cx="17" cy="18" r="2"/>',
 users:'<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
@@ -128,7 +137,7 @@ tag:'<path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .
 const lucide=n=>`<svg class="lucide" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${LUCIDE[n]||LUCIDE.circle}</svg>`;
 const menus=[['Dashboard','dashboard','dashboard'],['Suppliers','supplier','truck'],['Customers','customer','users'],['Inventory','inventory','package'],['Purchases','purchase','cart'],['Sales','sales','receipt'],['Expense','expense','wallet'],['Due Recover','due_recover','coins'],['Staff Manager','staff','user-check'],['Report','report','chart'],['Settings','settings','settings'],['ConnectX','connectx','mail'],['Zudo','zudo','sparkles'],['Vaultium','vaultium','file']];const canAccess=(section,action='view')=>{if(state?.role==='admin'||state?.adminAccess)return true;if(state?.readOnly&&action!=='view'&&!((section==='connectx'&&action==='add')||(section==='zudo'&&action==='add')))return false;if(section==='dashboard'&&action==='view')return true;let p=state?.permissions||{};return (p[section]||[]).includes(action)};function home(){if(state?.role==='staff'&&permissionSyncedFor!==state.token){Promise.all([api('me'),api('connectx/availability').catch(()=>({enabled:false})),api('zudo/availability').catch(()=>({enabled:false})),api('business-health/availability').catch(()=>({enabled:false,ever:false})),api('vaultium/availability').catch(()=>({enabled:false,ever:false}))]).then(([m,cx,zudo,bh,vault])=>{state.permissions=m.permissions||{};state.readOnly=!!m.readOnly;state.licenseExpired=!!m.licenseExpired;state.connectxEnabled=!!cx.enabled;state.connectxHistory=!!cx.history;state.zudoEnabled=!!zudo.enabled;state.zudoHistory=!!zudo.history;state.businessHealthEnabled=!!bh.enabled;state.businessHealthEver=!!bh.ever;state.vaultiumEnabled=!!vault.enabled;state.vaultiumEver=!!vault.ever;permissionSyncedFor=state.token;save(state);home()}).catch(e=>{toast(e.message);logout()});return}if(state?.role==='admin'&&entitlementSyncedFor!==state.token){api('admin/entitlement').then(x=>{state.licenseExpired=!!x.hasActivatedLicense&&!x.active;state.entitlement=x;entitlementSyncedFor=state.token;save(state);home()}).catch(e=>{toast(e.message);logout()});return}if(state.role==='owner')return ownerHome();let admin=state.role==='admin', visibleMenus=menus.filter(([,section])=>canAccess(section,'view')&&(section!=='connectx'||state.connectxEnabled||state.connectxHistory)&&(section!=='zudo'||state.zudoEnabled||state.zudoHistory)&&(section!=='vaultium'||state.vaultiumEnabled||state.vaultiumEver));app.innerHTML=`<div class="shell${admin?'':' dash2'}"><aside class="sidebar ${admin?'adminSidebar':''}"><div class="sidebarBrand"><b data-brand-name>EMS V1</b><small>powered by <span data-powered-by>DoxTox</span></small>${admin?'':`<em class="sidebarStore">${esc(state.store?.name||'')}</em>`}</div><nav class="nav">${admin?`<button data-page="profile"><span class="menuicon">${lucide('user')}</span>My Profile</button><button data-page="stores"><span class="menuicon">${lucide('store')}</span>Store Manage</button><button data-page="licenses"><span class="menuicon">${lucide('key')}</span>Licenses</button><button data-page="devices"><span class="menuicon">${lucide('devices')}</span>Devices</button><button data-page="helpdesk"><span class="menuicon">${lucide('msg')}</span>HelpDesk<span class="hdbadge" id="hbBadge" hidden></span></button><button data-page="addons"><span class="menuicon">${lucide('gem')}</span>Premium Add-Ons</button>`:visibleMenus.map(([x,,icon])=>`<button data-page="${x.toLowerCase().replaceAll(' ','-')}"><span class="menuicon">${lucide(icon)}</span>${x}</button>`).join('')}</nav>${admin?'':`<div class="sidebottom">${state.adminAccess?'<button class="secondary" id="returnAdmin">Return to admin</button>':''}<button class="logoutmenu" id="out">Logout</button></div>`}</aside><main class="main"><header class="top"><div class="topHeaderSpacer"></div><div class="shopTopActions"><span class="topUser"><span class="headerProfile">${esc(state.user.name).slice(0,1).toUpperCase()}</span>${esc(state.user.name)}</span>${!admin&&state.zudoEnabled&&canAccess('zudo','view')?'<button class="zudoTopButton" id="zudoTopButton" type="button" title="Open Zudo" aria-label="Open Zudo">✦</button>':''}${!admin&&canAccess('attendance','view')?'<button class="zudoTopButton" id="attTopButton" type="button" title="Attendance" aria-label="Attendance">✓</button>':''}${!admin&&(state.vaultiumEnabled||state.vaultiumEver)?'<button class="zudoTopButton" id="vaultTopButton" type="button" title="Vaultium" aria-label="Vaultium">🗄</button>':''}${admin?'<button class="secondary" id="out">Logout</button>':''}</div></header><section class="page" id="page"></section></main></div>`;$('#out').onclick=logout;api('public/branding').then(b=>{document.querySelectorAll('[data-brand-name]').forEach(x=>x.textContent=b.product_name||'EMS V1');document.querySelectorAll('[data-powered-by]').forEach(x=>x.textContent=b.powered_by||'DoxTox')}).catch(()=>{});if($('#zudoTopButton'))$('#zudoTopButton').onclick=()=>page('zudo');if($('#attTopButton'))$('#attTopButton').onclick=()=>page('attendance');if($('#vaultTopButton'))$('#vaultTopButton').onclick=()=>page('vaultium');if($('#returnAdmin'))$('#returnAdmin').onclick=()=>{let r=JSON.parse(localStorage.getItem('ems.admin.return')||'null');if(r){save(r);localStorage.removeItem('ems.admin.return');home()}};document.querySelectorAll('[data-page]').forEach(x=>x.onclick=()=>page(x.dataset.page));page(admin?'stores':(visibleMenus[0]?.[0]||'dashboard').toLowerCase().replaceAll(' ','-'));if(state.readOnly||state.licenseExpired)readOnlyNotice()}
 function readOnlyNotice(){if(document.querySelector('.licenseExpiryModal'))return;let isAdmin=state?.role==='admin',exp=!!state.licenseExpired,e=document.createElement('div');e.className='modal licenseExpiryModal';e.innerHTML=`<section class="modalbox expiryNotice"><div class="expiryIcon">${exp?'!':'ⓘ'}</div><h2>${exp?'License expired':'Read-Only mode'}</h2><p>${exp?'Your administrator license has expired. To continue operating shops, creating invoices, changing data, or using ConnectX, purchase and activate a new license.':'This shop is currently in Read-Only mode. You can view records but cannot add, edit, or delete data.'}</p><p class="muted">${exp?'Your shop data and license history are safely preserved. Shops are currently operating in Read-Only mode.':'Contact your administrator to restore full access.'}</p>${isAdmin?'<button id="goLicenses">View license plans</button>':'<button id="closeExpiry">Continue</button>'}</section>`;document.body.append(e);if(isAdmin)$('#goLicenses').onclick=()=>{e.remove();page('licenses')};else $('#closeExpiry').onclick=()=>e.remove()}
-function title(t,button='',middle=''){return `<div class="head"><div><h1>${t}</h1></div>${middle}${button}</div>`}async function page(p){document.querySelectorAll('[data-page]').forEach(x=>x.classList.toggle('active',x.dataset.page===p));let el=$('#page');el.innerHTML='<p class="muted">Loading…</p>';try{if(p==='dashboard')return await dashboard();if(p==='profile')return await profile();if(p==='stores')return await stores();if(p==='licenses')return await licenses();if(p==='devices')return await devices();if(p==='helpdesk')return await helpdeskAdmin();if(p==='addons')return await premiumAddons();if(['suppliers','customers','inventory','expense','staff-manager'].includes(p))return await entity(p);if(p==='attendance')return await attendancePage();if(p==='vaultium')return await vaultiumPage();if(['purchases','sales'].includes(p))return await invoices(p);if(p==='due-recover')return await dueRecover();if(p==='report')return await report();if(p==='connectx')return await connectX();if(p==='zudo')return await zudo();if(p==='settings')return await settings();el.innerHTML=title(p.replaceAll('-',' '))+`<section class="panel"><p>This module is reserved for the next EMS update. It is intentionally not represented with fabricated records.</p></section>`}catch(e){el.innerHTML=`<section class="panel"><h2>Could not load this page</h2><p>${esc(e.message)}</p></section>`}}
+function title(t,button='',middle=''){return `<div class="head"><div><h1>${t}</h1></div>${middle}${button}</div>`}async function page(p){document.querySelectorAll('[data-page]').forEach(x=>x.classList.toggle('active',x.dataset.page===p));let el=$('#page');el.innerHTML='<p class="muted">Loading…</p>';try{if(p==='dashboard')return await dashboard();if(p==='profile')return await profile();if(p==='stores')return await stores();if(p==='licenses')return await licenses();if(p==='devices')return await devices();if(p==='helpdesk')return await helpdeskAdmin();if(p==='addons')return await premiumAddons();if(['suppliers','customers','inventory','expense','staff-manager'].includes(p))return await entity(p);if(p==='attendance')return await attendancePage();if(p==='salary')return await salaryPage();if(p==='vaultium')return await vaultiumPage();if(['purchases','sales'].includes(p))return await invoices(p);if(p==='due-recover')return await dueRecover();if(p==='report')return await report();if(p==='connectx')return await connectX();if(p==='zudo')return await zudo();if(p==='settings')return await settings();el.innerHTML=title(p.replaceAll('-',' '))+`<section class="panel"><p>This module is reserved for the next EMS update. It is intentionally not represented with fabricated records.</p></section>`}catch(e){el.innerHTML=`<section class="panel"><h2>Could not load this page</h2><p>${esc(e.message)}</p></section>`}}
 function ownerHome(){app.innerHTML=`<div class="shell"><aside class="sidebar ownerSidebar"><div class="sidebarBrand"><b data-brand-name>EMS V1</b><small>powered by <span data-powered-by>DoxTox</span></small></div><nav class="nav"><button data-owner-page="overview"><span class="menuicon">${lucide('grid')}</span>Overview</button><button data-owner-page="licenses"><span class="menuicon">${lucide('shield')}</span>License control</button><button data-owner-page="plans"><span class="menuicon">${lucide('list')}</span>License plans</button><button data-owner-page="administrators"><span class="menuicon">${lucide('users')}</span>Administrators</button><button data-owner-page="shops"><span class="menuicon">${lucide('store')}</span>Shops</button><button data-owner-page="branding"><span class="menuicon">${lucide('palette')}</span>Website branding</button><button data-owner-page="website-pages"><span class="menuicon">${lucide('file')}</span>Website pages</button><button data-owner-page="blogs"><span class="menuicon">${lucide('rss')}</span>Blogs</button><button data-owner-page="contact-messages"><span class="menuicon">${lucide('inbox')}</span>Contact messages</button><button data-owner-page="connectx"><span class="menuicon">${lucide('mail')}</span>ConnectX</button><button data-owner-page="zudo"><span class="menuicon">${lucide('sparkles')}</span>Zudo AI</button><button data-owner-page="truebill"><span class="menuicon">${lucide('qr')}</span>TrueBill</button><button data-owner-page="vaultium"><span class="menuicon">${lucide('file')}</span>Vaultium</button><button data-owner-page="helpdesk"><span class="menuicon">${lucide('msg')}</span>HelpDesk<span class="hdbadge" id="ohbBadge" hidden></span></button><button data-owner-page="addons"><span class="menuicon">${lucide('gem')}</span>Premium Add-Ons</button><button data-owner-page="factory-reset"><span class="menuicon">${lucide('refresh')}</span>Factory reset</button></nav></aside><main class="main"><header class="top"><div class="topHeaderSpacer"></div><div class="shopTopActions"><span class="topUser"><span class="headerProfile">${esc(state.user.name).slice(0,1).toUpperCase()}</span>${esc(state.user.name)}</span><button class="secondary" id="out">Logout</button></div></header><section class="page" id="page"></section></main></div>`;$('#out').onclick=logout;api('public/branding').then(b=>{document.querySelectorAll('[data-brand-name]').forEach(x=>x.textContent=b.product_name||'EMS V1');document.querySelectorAll('[data-powered-by]').forEach(x=>x.textContent=b.powered_by||'DoxTox')}).catch(()=>{});document.querySelectorAll('[data-owner-page]').forEach(x=>x.onclick=()=>ownerPage(x.dataset.ownerPage));api('platform/helpdesk').then(list=>{const n=list.reduce((t,a)=>t+(a.unread||0),0),b=$('#ohbBadge');if(b){b.textContent=n;b.hidden=n===0}}).catch(()=>{});ownerPage('overview')}
 
 async function ownerPage(p){document.querySelectorAll('[data-owner-page]').forEach(x=>x.classList.toggle('active',x.dataset.ownerPage===p));let el=$('#page');el.innerHTML='<p class="muted">Loading platform data…</p>';try{let d=await api('platform/overview');if(p==='overview')return ownerOverview(d);if(p==='licenses')return ownerLicenses(d);if(p==='plans')return ownerPlans();if(p==='administrators')return ownerAdmins(d);if(p==='shops')return ownerShops(d);if(p==='branding')return ownerBranding();if(p==='website-pages')return ownerWebsitePages();if(p==='blogs')return ownerBlogs();if(p==='contact-messages')return ownerContactMessages();if(p==='connectx')return ownerConnectX();if(p==='zudo')return ownerZudo();if(p==='truebill')return await ownerTrueBill();if(p==='vaultium')return await ownerVaultium();if(p==='helpdesk')return await ownerHelpdesk();if(p==='addons')return await ownerAddons();if(p==='factory-reset')return ownerFactoryReset()}catch(e){el.innerHTML=`<section class="panel"><h2>Could not load platform control</h2><p>${esc(e.message)}</p></section>`}}
@@ -307,6 +316,193 @@ function vaultPreview(url,name){
   e.querySelector('#vpClose').onclick=()=>{e.remove();URL.revokeObjectURL(url)};
   e.addEventListener('click',ev=>{if(ev.target===e){e.remove();URL.revokeObjectURL(url)}});
 }
+async function salaryPage(){
+  const MN=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const monthNow=()=>new Date(Date.now()+6*3600*1000).toISOString().slice(0,7);
+  const monthLabel=ym=>{let [y,m]=String(ym).split('-');return (MN[+m-1]||'')+' '+(y||'')};
+  const initials=n=>String(n||'?').trim().split(/\s+/).map(w=>w[0]).filter(Boolean).slice(0,2).join('').toUpperCase();
+  const typeBadge=t=>t==='due'?'<span class="salBadge salBdue">Due</span>':t==='advance'?'<span class="salBadge salBadv">Advance</span>':'<span class="salBadge salBcur">Current</span>';
+  const statusBadge=d=>Number(d)<=0?'<span class="salBadge salBpaid">Paid</span>':'<span class="salBadge salBunpaid">Unpaid</span>';
+  let staffs=[],summary={},invoices=[],att={present:0,total:0},selected=null,q='';
+  const byId=id=>staffs.find(x=>x.id===id);
+  const canAdd=canAccess('salary','add'),canDel=canAccess('salary','delete');
+
+  $('#page').innerHTML=title('Salary')+`<div class="salWrap">
+    <div class="salHead">
+      <div class="salBrand"><span class="salBrandIcon">${lucide('coins')}</span><div><h2>Staff Salary</h2><small>Payroll invoices · attendance-based pay · advances</small></div></div>
+      <div class="salHeadRight"><span class="salDateBadge">${lucide('calendar')} ${monthLabel(monthNow())}</span><button class="salGhost" id="salBack">${lucide('undo')} Staff manager</button></div>
+    </div>
+    <div class="salGrid">
+      <aside class="salSide">
+        <div class="salSideHead"><h3>${lucide('users')} Staff</h3><span class="salCount" id="salCount">0</span></div>
+        <div class="salSearch">${lucide('search')}<input id="salSearch" placeholder="Search staff…"></div>
+        <div class="salList" id="salList"></div>
+      </aside>
+      <section class="salMain" id="salMain"><p class="muted">Loading payroll…</p></section>
+    </div></div>`;
+  $('#salBack').onclick=()=>page('staff-manager');
+  $('#salSearch').oninput=e=>{q=e.target.value;renderList()};
+
+  function renderList(){
+    let list=q?staffs.filter(x=>JSON.stringify([x.full_name,x.position,x.user_id]).toLowerCase().includes(q.toLowerCase())):staffs;
+    $('#salCount').textContent=list.length;
+    $('#salList').innerHTML=list.length?list.map(x=>`<div class="salStaffItem${x.id===selected?' active':''}" data-id="${x.id}"><div class="salAvatar">${esc(initials(x.full_name))}</div><div class="salInfo"><div class="salName">${esc(x.full_name)}</div><div class="salRole">${esc(x.position||'—')}</div></div><span class="salDot${x.active===false?'':' on'}"></span></div>`).join(''):'<p class="salEmpty">No staff found.</p>';
+    document.querySelectorAll('.salStaffItem').forEach(el=>el.onclick=()=>select(el.dataset.id));
+  }
+
+  function profileHtml(p){
+    const s=summary[p.id]||{};
+    return `<div class="salProfile">
+      <div class="salProfileLeft">
+        <div class="salBigAvatar">${esc(initials(p.full_name))}</div>
+        <div><h3>${esc(p.full_name)}</h3><div class="salMeta">
+          <span>${lucide('briefcase')} ${esc(p.position||'—')}</span>
+          <span>${lucide('calendar')} Joined ${esc((p.created_at||'').slice(0,10))}</span>
+          <span>${lucide('mail')} ${esc(p.email||'—')}</span>
+        </div></div>
+      </div>
+      <div class="salProfileRight">
+        <span class="salStatBadge">${lucide('banknote')} Base: <b>৳ ${money(s.monthly||0)}</b></span>
+        <span class="salStatBadge">${lucide('clock')} Present: <b>${att.present}/${att.total}d</b></span>
+      </div></div>`;
+  }
+  function cardsHtml(p){
+    const s=summary[p.id]||{};
+    return `<div class="salCards">
+      <div class="salCard accBlue"><div class="lbl">Monthly Salary</div><div class="val">৳ ${money(s.monthly||0)}</div></div>
+      <div class="salCard accOrange"><div class="lbl">Outstanding Due</div><div class="val">৳ ${money(s.outstandingDue||0)}</div></div>
+      <div class="salCard accRed"><div class="lbl">Taken Advance</div><div class="val">৳ ${money(s.takenAdvance||0)}</div></div>
+      <div class="salCard accGreen"><div class="lbl">Total Paid (YTD)</div><div class="val">৳ ${money(s.totalPaidYTD||0)}</div></div>
+    </div>`;
+  }
+  function formHtml(p){
+    const s=summary[p.id]||{},pct=att.total>0?Math.round(att.present/att.total*100):0;
+    return `<div class="salBox">
+      <div class="salBoxTitle">${lucide('filetext')} Create salary invoice</div>
+      <div class="salFormGrid">
+        <label class="salField">Invoice type<select id="salType"><option value="current">Current Salary</option><option value="due">Outstanding Due</option><option value="advance">Advance Payment</option></select></label>
+        <label class="salField">Salary month<input type="month" id="salMonth" value="${monthNow()}"></label>
+        <div class="salFull salAdjust" id="salAdjust">
+          <div class="salAttRow">
+            <label class="salCheck"><input type="checkbox" id="salAttBased"> <span>${lucide('clock')} Attendance based salary</span></label>
+            <span class="salAttInfo">Present: <b id="salAttP">${att.present}</b> / <b id="salAttT">${att.total}</b> days · Prorated: <b id="salAttPct">${pct}%</b></span>
+          </div>
+          <label class="salAdjLbl">Salary adjustments <small>(optional)</small></label>
+          <div class="salAdjGrid">
+            <div class="salAdj"><span class="plus">+</span><label>Incentive</label><input type="number" id="salIncentive" value="0" min="0" step="50"></div>
+            <div class="salAdj"><span class="plus">+</span><label>Bonus</label><input type="number" id="salBonus" value="0" min="0" step="50"></div>
+            <div class="salAdj"><span class="minus">−</span><label>Fine</label><input type="number" id="salFine" value="0" min="0" step="50"></div>
+            <div class="salAdj"><span class="minus">−</span><label>Other deduction</label><input type="number" id="salOther" value="0" min="0" step="50"></div>
+          </div>
+          <div class="salToggles">
+            <label class="salCheck"><input type="checkbox" id="salAddOut"> Add outstanding due <span class="salPv" id="salPvOut">৳ 0</span></label>
+            <label class="salCheck"><input type="checkbox" id="salCutAdv"> Cut advance payment <span class="salPv" id="salPvAdv">৳ 0</span></label>
+          </div>
+        </div>
+        <div class="salFull salPaidRow">
+          <label>${lucide('banknote')} Paid amount</label>
+          <input type="number" id="salPaid" value="0" min="0" step="50" placeholder="0">
+          <small id="salPaidHint">(enter the amount already paid)</small>
+        </div>
+        <div class="salFull"><div class="salSummary">
+          <div class="salSum hiBlue"><div class="sl">Total</div><div class="sv">৳ <span id="salTotal">0</span></div></div>
+          <div class="salSum hiGreen"><div class="sl">Paid</div><div class="sv">৳ <span id="salPaidView">0</span></div></div>
+          <div class="salSum hiRed"><div class="sl">Due</div><div class="sv">৳ <span id="salDue">0</span></div></div>
+          <div class="salSum hiNet"><div class="sl">Net payable</div><div class="sv">৳ <span id="salNet">0</span></div></div>
+        </div></div>
+      </div>
+      <div class="salActions">
+        <button class="salGhost" id="salReset">${lucide('undo')} Reset</button>
+        ${canAdd?`<button class="salSave" id="salSave">${lucide('save')} Save invoice</button>`:'<span class="muted" style="align-self:center;">Read-only access — saving is disabled.</span>'}
+      </div></div>`;
+  }
+  function historyHtml(){
+    return `<div class="salBox salHistory"><div class="salBoxTitle">${lucide('history')} Salary history</div><div class="salTableWrap"><table class="salTable"><thead><tr><th>Month</th><th>Type</th><th>Total</th><th>Paid</th><th>Due</th><th>Status</th>${canDel?'<th></th>':''}</tr></thead><tbody id="salHistoryBody">${invoices.length?invoices.map(h=>`<tr><td><b>${esc(monthLabel(h.salary_month))}</b></td><td>${typeBadge(h.invoice_type)}</td><td>৳ ${money(h.total)}</td><td>৳ ${money(h.paid)}</td><td>৳ ${money(h.due)}</td><td>${statusBadge(h.due)}</td>${canDel?`<td><button class="salDel danger" data-del="${h.id}" title="Delete invoice">×</button></td>`:''}</tr>`).join(''):`<tr><td colspan="7" class="salEmpty">No salary invoices yet.</td></tr>`}</tbody></table></div></div>`;
+  }
+
+  function calc(){
+    if(!selected)return;
+    const p=byId(selected),s=summary[selected]||{};
+    if(!p)return;
+    const num=id=>Math.max(0,parseFloat($('#'+id).value)||0);
+    const type=$('#salType').value;
+    $('#salAdjust').classList.toggle('hidden',type==='advance');
+    $('#salPaidHint').textContent=type==='advance'?'(enter the advance amount to pay now)':'(enter the amount already paid)';
+    let base=Number(s.monthly||0);
+    const useAtt=$('#salAttBased').checked;
+    if(useAtt&&att.total>0)base=Math.round(att.present/att.total*base*100)/100;
+    let total,paid;
+    if(type==='advance'){total=num('salPaid');paid=total;}
+    else{
+      total=base+num('salIncentive')+num('salBonus')-num('salFine')-num('salOther');
+      if($('#salAddOut').checked)total+=Number(s.outstandingDue||0);
+      if($('#salCutAdv').checked)total-=Number(s.takenAdvance||0);
+      if(total<0)total=0;
+      paid=num('salPaid');
+    }
+    const due=Math.max(0,total-paid);
+    $('#salPvOut').textContent='৳ '+money($('#salAddOut').checked?(s.outstandingDue||0):0);
+    $('#salPvAdv').textContent='৳ '+money($('#salCutAdv').checked?(s.takenAdvance||0):0);
+    $('#salTotal').textContent=money(total);$('#salPaidView').textContent=money(paid);$('#salDue').textContent=money(due);$('#salNet').textContent=money(total);
+  }
+
+  function resetForm(){
+    if(!selected)return;
+    ['salIncentive','salBonus','salFine','salOther','salPaid'].forEach(id=>$('#'+id).value='0');
+    ['salAttBased','salAddOut','salCutAdv'].forEach(id=>$('#'+id).checked=false);
+    $('#salType').value='current';$('#salMonth').value=monthNow();
+    calc();
+  }
+
+  function renderDetail(){
+    const p=byId(selected);
+    if(!p){$('#salMain').innerHTML='<p class="muted">Select a staff member to manage salary.</p>';return}
+    $('#salMain').innerHTML=profileHtml(p)+cardsHtml(p)+formHtml(p)+historyHtml();
+    $('#salType').onchange=calc;
+    $('#salMonth').onchange=async()=>{await load(true);renderDetail()};
+    ['salAttBased','salAddOut','salCutAdv','salIncentive','salBonus','salFine','salOther','salPaid'].forEach(id=>$('#'+id).oninput=calc);
+    $('#salReset').onclick=resetForm;
+    if(canAdd&&$('#salSave'))$('#salSave').onclick=save;
+    document.querySelectorAll('[data-del]').forEach(b=>b.onclick=async()=>{if(!confirm('Delete this salary invoice?'))return;try{await api('salary/'+b.dataset.del,{method:'DELETE'});toast('Salary invoice deleted.');await load(true);renderList();renderDetail()}catch(e){toast(e.message)}});
+    calc();
+  }
+
+  async function save(){
+    const p=byId(selected);if(!p)return toast('Select a staff member first.');
+    const month=$('#salMonth').value;
+    if(!/^\d{4}-\d{2}$/.test(month))return toast('Please select a salary month.');
+    const type=$('#salType').value,num=id=>Math.max(0,parseFloat($('#'+id).value)||0);
+    const rec={staff_id:p.id,salary_month:month,invoice_type:type,base_amount:Number((summary[selected]||{}).monthly||0),attendance_based:$('#salAttBased').checked,present_days:att.present,total_days:att.total,incentive:num('salIncentive'),bonus:num('salBonus'),fine:num('salFine'),other_deduction:num('salOther'),add_outstanding:$('#salAddOut').checked,cut_advance:$('#salCutAdv').checked,paid:num('salPaid')};
+    try{
+      await api('salary',{method:'POST',body:JSON.stringify(rec)});
+      toast('Salary invoice saved for '+p.full_name+'.');
+      await load(true);renderList();renderDetail();
+    }catch(e){toast(e.message)}
+  }
+
+  async function load(keep){
+    let url='salary';
+    if(keep&&selected)url+='?staff_id='+encodeURIComponent(selected)+'&month='+encodeURIComponent($('#salMonth')?$('#salMonth').value:monthNow());
+    let d=await api(url);
+    staffs=d.staffs||[];summary=d.summary||{};
+    if(keep&&selected){invoices=d.invoices||[];att=d.attendance||{present:0,total:0}}
+    else{invoices=[];att={present:0,total:0}}
+  }
+
+  async function select(id){
+    selected=id;renderList();
+    $('#salMain').innerHTML='<p class="muted">Loading…</p>';
+    try{
+      let d=await api('salary?staff_id='+encodeURIComponent(id)+'&month='+encodeURIComponent($('#salMonth')?$('#salMonth').value:monthNow()));
+      invoices=d.invoices||[];att=d.attendance||{present:0,total:0};summary=d.summary||summary;
+      renderDetail();
+    }catch(e){$('#salMain').innerHTML='<p class="muted">'+esc(e.message)+'</p>'}
+  }
+
+  try{await load(false)}catch(e){toast(e.message)}
+  renderList();
+  if(staffs.length)await select(staffs[0].id);else $('#salMain').innerHTML='<p class="muted">No staff members yet. Add staff from the Staff manager first.</p>';
+}
 async function vaultiumPage(){
   const fmt=v=>{const n=Number(v||0);return n>=GB2?((n/GB2).toFixed(2)+' GB'):n>=MB2?((n/MB2).toFixed(1)+' MB'):(n>=KB2?((n/KB2).toFixed(0)+' KB'):n+' B')};
   const [av,files]=await Promise.all([api('vaultium/availability').catch(()=>null),api('vaultium/files')]);
@@ -386,10 +582,10 @@ async function inventoryManager(){let [rows,cfg]=await Promise.all([api('invento
 
 
 function inventoryModal(record=null,refresh=inventoryManager){let units=['pcs','box','carton','pack','pair','set','kg','gram','liter','ml','meter','feet','dozen','bag','roll','bottle','can'];let e=document.createElement('div');e.className='modal d2';e.innerHTML=`<form class="modalbox fields"><div class="modalhead"><h2>${record?'Edit':'Add'} inventory item</h2><button type="button">×</button></div><label>Item code <span class="muted">Leave blank to auto-generate.</span><input name="item_code" value="${esc(record?.item_code||'')}"></label><label>Description<input name="description" required value="${esc(record?.description||'')}"></label><div class="grid2"><label>Unit<select name="unit" required>${units.map(x=>`<option value="${x}" ${record?.unit===x?'selected':''}>${x}</option>`).join('')}</select></label><label>Sale price<input name="sale_price" type="number" min="0" step="0.01" required value="${esc(record?.sale_price??'')}"></label></div><label>Active status<select name="active"><option value="true" ${record?.active!==false?'selected':''}>Yes — available for sale</option><option value="false" ${record?.active===false?'selected':''}>No — inactive</option></select></label><button>Save item</button></form>`;document.body.append(e);e.querySelector('[type=button]').onclick=()=>e.remove();e.querySelector('form').onsubmit=async ev=>{ev.preventDefault();let b=Object.fromEntries(new FormData(ev.target));b.active=b.active==='true';try{await api(record?'inventory/'+record.id:'inventory',{method:record?'PATCH':'POST',body:JSON.stringify(b)});e.remove();toast('Inventory item saved.');refresh()}catch(x){toast(x.message)}}}
-const permissionLabels={dashboard:'Dashboard',supplier:'Supplier',customer:'Customer',inventory:'Inventory',purchase:'Purchase',sales:'Sales',expense:'Expense',due_recover:'Due Recover',staff:'Staff Manager',report:'Report',settings:'Settings',connectx:'ConnectX',zudo:'Zudo',attendance:'Attendance',vaultium:'Vaultium'};const permissionActions=['view','add','edit','delete'];
+const permissionLabels={dashboard:'Dashboard',supplier:'Supplier',customer:'Customer',inventory:'Inventory',purchase:'Purchase',sales:'Sales',expense:'Expense',due_recover:'Due Recover',staff:'Staff Manager',report:'Report',settings:'Settings',connectx:'ConnectX',zudo:'Zudo',attendance:'Attendance',salary:'Salary',vaultium:'Vaultium'};const permissionActions=['view','add','edit','delete'];
 function permissionEditor(existing={}){return `<section class="permissionbox"><div class="permissiontitle"><div><h3>Module permissions</h3><p>Select exactly what this staff member may do. Permissions are checked by the server, not only hidden in the interface.</p></div><button type="button" class="secondary" id="clearPermissions">Clear all</button></div>${Object.entries(permissionLabels).map(([key,label])=>`<div class="permissionrow"><strong>${label}</strong><button type="button" class="toggleall" data-section="${key}">Toggle all</button><div class="permissionactions">${(key==='zudo'?['view','send','delete']:permissionActions).map(action=>`<label class="switchlabel"><input type="checkbox" data-permission="${key}" value="${action}" ${existing[key]?.includes(action)?'checked':''}><span>${action}</span></label>`).join('')}</div></div>`).join('')}</section>`}
 function collectPermissions(root){let out={};root.querySelectorAll('[data-permission]').forEach(x=>{if(x.checked)(out[x.dataset.permission]??=[]).push(x.value)});return out}
-async function staffManager(){let rows=await api('staff');$('#page').innerHTML=title('Staff manager',(canAccess('attendance','view')?'<button id="attendanceBtn">Attendance</button> ':'')+(canAccess('staff','add')?'<button id="addStaff">+ Add staff member</button>':''),`<input id="search" class="headsearch" placeholder="Search staff">`)+`<div class="flatlist"><div class="tablewrap"><table><thead><tr><th>Name</th><th>Position</th><th>Phone</th><th>User ID</th><th>Status</th><th>Permissions</th><th>Actions</th></tr></thead><tbody id="staffRows">${staffRows(rows)}</tbody></table></div></div>`;let filter=q=>$('#staffRows').innerHTML=staffRows(rows.filter(x=>JSON.stringify(x).toLowerCase().includes(q.toLowerCase())));$('#search').oninput=e=>filter(e.target.value);$('#addStaff').onclick=()=>staffModal();$('#attendanceBtn').onclick=()=>page('attendance');document.querySelectorAll('[data-edit-staff]').forEach(b=>b.onclick=()=>staffModal(rows.find(x=>x.id===b.dataset.editStaff)));document.querySelectorAll('[data-delete-staff]').forEach(b=>b.onclick=async()=>{let person=rows.find(x=>x.id===b.dataset.deleteStaff);if(!confirm(`Remove ${person.full_name}? This cannot be undone.`))return;try{await api('staff/'+person.id,{method:'DELETE'});toast('Staff member removed.');staffManager()}catch(e){toast(e.message)}})}
+async function staffManager(){let rows=await api('staff');$('#page').innerHTML=title('Staff manager',(canAccess('attendance','view')?'<button id="attendanceBtn">Attendance</button> ':'')+(canAccess('salary','view')?'<button id="salaryBtn">Salary</button>':'')+(canAccess('staff','add')?'<button id="addStaff">+ Add staff member</button>':''),`<input id="search" class="headsearch" placeholder="Search staff">`)+`<div class="flatlist"><div class="tablewrap"><table><thead><tr><th>Name</th><th>Position</th><th>Phone</th><th>User ID</th><th>Status</th><th>Permissions</th><th>Actions</th></tr></thead><tbody id="staffRows">${staffRows(rows)}</tbody></table></div></div>`;let filter=q=>$('#staffRows').innerHTML=staffRows(rows.filter(x=>JSON.stringify(x).toLowerCase().includes(q.toLowerCase())));$('#search').oninput=e=>filter(e.target.value);$('#addStaff').onclick=()=>staffModal();$('#attendanceBtn').onclick=()=>page('attendance');if($('#salaryBtn'))$('#salaryBtn').onclick=()=>page('salary');document.querySelectorAll('[data-edit-staff]').forEach(b=>b.onclick=()=>staffModal(rows.find(x=>x.id===b.dataset.editStaff)));document.querySelectorAll('[data-delete-staff]').forEach(b=>b.onclick=async()=>{let person=rows.find(x=>x.id===b.dataset.deleteStaff);if(!confirm(`Remove ${person.full_name}? This cannot be undone.`))return;try{await api('staff/'+person.id,{method:'DELETE'});toast('Staff member removed.');staffManager()}catch(e){toast(e.message)}})}
 function staffRows(rows){if(!rows.length)return '<tr><td colspan="7" class="muted">No staff members found.</td></tr>';return rows.map(x=>{let n=Object.values(x.permissions||{}).reduce((a,v)=>a+v.length,0);return `<tr><td>${esc(x.full_name)}</td><td>${esc(x.position)}</td><td>${esc(x.phone)}</td><td>${esc(x.user_id)}</td><td><span class="statuspill ${x.active?'active':'inactive'}">${x.active?'Active':'Inactive'}</span></td><td>${n} granted</td><td class="actions"><button class="secondary" data-edit-staff="${x.id}">Edit</button><button class="danger" data-delete-staff="${x.id}">Delete</button></td></tr>`}).join('')}
 function staffModal(person=null){let add=!person,e=document.createElement('div');e.className='modal d2';e.innerHTML=`<form class="modalbox staffmodal fields"><div class="modalhead"><div><h2>${add?'Add staff member':'Edit staff member'}</h2><p class="muted">A password is required for a new staff member. For an existing staff member, leave it blank to retain the current password.</p></div><button type="button">×</button></div><div class="grid2"><label>Full name<input name="full_name" required value="${esc(person?.full_name||'')}"></label><label>Position<input name="position" value="${esc(person?.position||'')}"></label><label>Phone number<input name="phone" required value="${esc(person?.phone||'')}"></label><label>Email address<input name="email" type="email" value="${esc(person?.email||'')}"></label><label>User ID<input name="user_id" required value="${esc(person?.user_id||'')}"></label><label>Password<input name="password" type="password" ${add?'required minlength="10"':'minlength="10"'} placeholder="${add?'At least 10 characters':'Leave blank to keep current'}"></label><label>Basic salary<input name="basic_salary" type="number" min="0" step="0.01" required value="${esc(person?.basic_salary??0)}"></label><label>Account status<select name="active"><option value="true" ${person?.active!==false?'selected':''}>Active — can sign in</option><option value="false" ${person?.active===false?'selected':''}>Inactive — sign-in blocked</option></select></label></div>${permissionEditor(person?.permissions||{})}<button>${add?'Create active staff account':'Save staff changes'}</button></form>`;document.body.append(e);e.querySelector('.modalhead button').onclick=()=>e.remove();e.querySelector('#clearPermissions').onclick=()=>e.querySelectorAll('[data-permission]').forEach(x=>x.checked=false);e.querySelectorAll('.toggleall').forEach(b=>b.onclick=()=>{let boxes=e.querySelectorAll(`[data-permission="${b.dataset.section}"]`),all=[...boxes].every(x=>x.checked);boxes.forEach(x=>x.checked=!all)});e.querySelector('form').onsubmit=async ev=>{ev.preventDefault();try{let b=Object.fromEntries(new FormData(ev.target));b.active=b.active==='true';b.permissions=collectPermissions(e);if(!b.password)delete b.password;await api(add?'staff':'staff/'+person.id,{method:add?'POST':'PATCH',body:JSON.stringify(b)});toast(add?'Staff account created.':'Staff account updated.');e.remove();staffManager()}catch(err){toast(err.message)}}}
 async function zudo(){let current=null,conversations=[],usage=null,sending=false;$('#page').innerHTML=`<div class="zudo"><aside class="zudoSide"><div class="zudoBrand">✦ <b>Zudo</b><small>powered by DoxTox</small></div><button id="zudoNew">+ New chat</button><div id="zudoConversations"></div></aside><section class="zudoMain"><header><div><h2>Zudo</h2><span>Read-only business intelligence</span></div><div class="zudoHeaderActions"><span id="zudoUsage" class="zudoUsage" aria-live="polite">Loading request usage…</span><span class="zudoBadge">AI Assistant</span></div></header><div class="zudoMessages" id="zudoMessages"><div class="zudoWelcome"><div class="zudoBloubWrap"><img class="zudoBloub" src="assets/img/zudo-bloub.svg" alt="" aria-hidden="true"></div><b>Hello, I’m Zudo.</b><p>Ask about sales, purchases, inventory, customers, expenses, and due data. I only read your current shop data.</p><div><button class="zudoPrompt">What are my low stock items?</button><button class="zudoPrompt">Give me today’s sales summary</button><button class="zudoPrompt">Which customers may have due?</button></div></div></div><form class="zudoComposer" id="zudoForm"><textarea id="zudoInput" rows="2" placeholder="Ask Zudo about your shop…"></textarea><button id="zudoSend" type="submit">Send ✦</button></form></section></div>`;async function loadUsage(){try{usage=await api('zudo/availability');let label=$('#zudoUsage'),send=$('#zudoSend');if(label){label.textContent=usage.enabled?`Daily limit: ${usage.dailyLimit} · Used: ${usage.usedToday} · Remaining: ${usage.remaining}`:'Zudo is not available for this shop';label.classList.toggle('limitReached',!!usage.enabled&&usage.remaining<=0)}if(send)send.disabled=!usage||!usage.enabled||usage.remaining<=0}catch(err){let label=$('#zudoUsage');if(label)label.textContent='Request usage unavailable'}}async function loadConversations(){conversations=await api('zudo/conversations');$('#zudoConversations').innerHTML=conversations.map(x=>`<div class="zudoConvRow ${x.id===current?'on':''}"><button class="zudoConv" data-zudo-conv="${x.id}">${esc(x.title)}</button><button class="zudoMore" data-zudo-more="${x.id}" aria-label="Conversation options">⋯</button><div class="zudoMoreMenu" data-zudo-menu="${x.id}" hidden><button class="danger" data-zudo-delete="${x.id}">Delete chat</button></div></div>`).join('')||'<p class="muted">No conversations yet.</p>';document.querySelectorAll('[data-zudo-conv]').forEach(b=>b.onclick=()=>openConversation(b.dataset.zudoConv));document.querySelectorAll('[data-zudo-more]').forEach(b=>b.onclick=e=>{e.stopPropagation();let menu=document.querySelector(`[data-zudo-menu="${b.dataset.zudoMore}"]`);let wasHidden=menu.hidden;document.querySelectorAll('[data-zudo-menu]').forEach(m=>m.hidden=true);menu.hidden=!wasHidden});document.querySelectorAll('[data-zudo-delete]').forEach(b=>b.onclick=async e=>{e.stopPropagation();if(!confirm('Delete this Zudo chat and its messages?'))return;try{await api('zudo/conversations/'+b.dataset.zudoDelete,{method:'DELETE'});if(current===b.dataset.zudoDelete){current=null;$('#zudoMessages').innerHTML='<div class="zudoWelcome"><div class="zudoBloubWrap"><img class="zudoBloub" src="assets/img/zudo-bloub.svg" alt="" aria-hidden="true"></div><b>New Zudo chat</b><p>Ask a question about your shop data.</p></div>'}loadConversations()}catch(err){toast(err.message)}})}function renderMessages(messages){$('#zudoMessages').innerHTML=messages.map(x=>`<div class="zudoMsg ${x.role}"><span>${x.role==='assistant'?'Zudo':'You'}</span><div>${x.role==='assistant'?fmtAI(x.content):esc(x.content).replace(/\n/g,'<br>')}</div></div>`).join('');$('#zudoMessages').scrollTop=$('#zudoMessages').scrollHeight}async function openConversation(id){current=id;renderMessages(await api('zudo/conversations/'+id));loadConversations()}$('#zudoNew').onclick=()=>{current=null;$('#zudoMessages').innerHTML='<div class="zudoWelcome"><div class="zudoBloubWrap"><img class="zudoBloub" src="assets/img/zudo-bloub.svg" alt="" aria-hidden="true"></div><b>New Zudo chat</b><p>Ask a question about your shop data.</p></div>';loadConversations()};document.querySelectorAll('.zudoPrompt').forEach(b=>b.onclick=()=>{$('#zudoInput').value=b.textContent;$('#zudoInput').focus()});$('#zudoForm').onsubmit=async e=>{e.preventDefault();let input=$('#zudoInput'),send=$('#zudoSend'),message=input.value.trim();if(!message||sending)return;if(!usage)await loadUsage();if(!usage?.enabled)return toast('Zudo is not available for this shop.');if(Number(usage.remaining)<=0)return toast('Your daily Zudo request limit has been reached.');sending=true;input.value='';if(send)send.disabled=true;let box=$('#zudoMessages');box.insertAdjacentHTML('beforeend',`<div class="zudoMsg user"><span>You</span><div>${esc(message)}</div></div><div class="zudoMsg assistant thinking"><span>Zudo</span><div>Thinking…</div></div>`);box.scrollTop=box.scrollHeight;try{let r=await api('zudo/chat',{method:'POST',body:JSON.stringify({conversationId:current,message})});current=r.conversationId;box.querySelector('.thinking')?.remove();box.insertAdjacentHTML('beforeend',`<div class="zudoMsg assistant"><span>Zudo</span><div>${fmtAI(r.answer)}</div></div>`);box.scrollTop=box.scrollHeight;loadConversations()}catch(err){box.querySelector('.thinking')?.remove();toast(err.message)}finally{sending=false;await loadUsage();if(usage?.remaining>0)input.focus()}};loadConversations();loadUsage()}
