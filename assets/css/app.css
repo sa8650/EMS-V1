@@ -2287,3 +2287,120 @@ html body .shell.dash2 .main .salesTrendCard .tgrid{stroke:#BDB9CE!important}
 .dueRecoverBox{width:min(1180px,96vw)!important;max-height:94vh!important;overflow:auto!important}
 .dueshort table{min-width:420px}.dueshort tr{cursor:pointer}.dueshort tr.selected td{background:#eef6ff!important}.dueshort td small{display:block;color:#6b7280;font-size:11px;margin-top:3px}.dueshort td{white-space:normal}.dueRecoverBox .dueworkspace{grid-template-columns:minmax(360px,42%) minmax(0,1fr)}
 @media(max-width:820px){.dueRecoverBox{width:100%!important}.dueRecoverBox .dueworkspace{grid-template-columns:1fr}.dueRecoverBox .dueleft{max-height:none}}
+
+/* ── Staff Salary page (sal*) ── */
+.salWrap{background:#fff;border:1px solid var(--line,#dbe4ee);border-radius:14px;padding:20px 22px 26px;box-shadow:0 6px 18px rgba(21,45,63,.06)}
+.salHead{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px;margin-bottom:20px;padding-bottom:14px;border-bottom:2px solid #eef3f8}
+.salBrand{display:flex;align-items:center;gap:12px}
+.salBrandIcon{display:flex;align-items:center;justify-content:center;width:48px;height:48px;border-radius:14px;background:#e8edf6;color:#1e3a6f}
+.salBrandIcon svg{width:24px;height:24px}
+.salBrand h2{font-size:20px;font-weight:700;color:#0b1a2e;letter-spacing:-.3px}
+.salBrand small{color:#4b6a8b;font-size:13px}
+.salHeadRight{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.salDateBadge{display:inline-flex;align-items:center;gap:8px;background:#eef3f8;padding:8px 16px;border-radius:40px;font-size:13px;font-weight:500;color:#1e3a6f}
+.salDateBadge svg{width:14px;height:14px}
+.salGhost{display:inline-flex;align-items:center;gap:7px;padding:9px 18px;border-radius:40px;border:1px solid #dce5ef;background:transparent;color:#1a2c42;font-weight:600;font-size:13px;cursor:pointer;transition:.15s}
+.salGhost svg{width:14px;height:14px}
+.salGhost:hover{background:#f0f4f9}
+.salGrid{display:grid;grid-template-columns:300px minmax(0,1fr);gap:24px}
+.salSide{background:#f8fafc;border:1px solid #e4ecf3;border-radius:18px;padding:16px 14px 18px;max-height:760px;display:flex;flex-direction:column}
+.salSideHead{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.salSideHead h3{display:flex;align-items:center;gap:8px;font-size:15px;font-weight:600;color:#0b1a2e}
+.salSideHead svg{width:15px;height:15px;color:#1e3a6f}
+.salCount{font-size:12px;background:#dce5ef;padding:2px 12px;border-radius:30px;color:#1e3a6f;font-weight:600}
+.salSearch{position:relative;margin-bottom:12px}
+.salSearch svg{position:absolute;left:13px;top:50%;transform:translateY(-50%);width:14px;height:14px;color:#7a94b0;pointer-events:none}
+.salSearch input{width:100%;padding:10px 14px 10px 36px;border:1px solid #dce5ef;border-radius:40px;font-size:13px;background:#fff;outline:none;font-family:inherit;transition:.2s}
+.salSearch input:focus{border-color:#1e3a6f;box-shadow:0 0 0 3px rgba(30,58,111,.12)}
+.salList{flex:1;overflow-y:auto;padding-right:4px}
+.salList::-webkit-scrollbar{width:4px}
+.salList::-webkit-scrollbar-thumb{background:#cbd8e6;border-radius:10px}
+.salStaffItem{display:flex;align-items:center;gap:12px;padding:11px 12px;border-radius:13px;cursor:pointer;transition:all .15s;margin-bottom:4px;border:1px solid transparent}
+.salStaffItem:hover{background:#eef3f8}
+.salStaffItem.active{background:#fff;border-color:#1e3a6f;box-shadow:0 4px 12px rgba(30,58,111,.10)}
+.salAvatar{width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#1e3a6f,#3b6a9e);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:15px;flex-shrink:0}
+.salInfo{flex:1;min-width:0}
+.salName{font-weight:600;font-size:14px;color:#0b1a2e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.salRole{font-size:12px;color:#4b6a8b;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.salDot{width:8px;height:8px;border-radius:50%;background:#c24a4a;flex-shrink:0}
+.salDot.on{background:#2e9c6b}
+.salMain{display:flex;flex-direction:column;gap:18px;min-width:0}
+.salProfile{background:#f8fafc;border:1px solid #e4ecf3;border-radius:18px;padding:18px 20px;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:14px}
+.salProfileLeft{display:flex;align-items:center;gap:16px;min-width:0}
+.salBigAvatar{width:60px;height:60px;border-radius:50%;background:linear-gradient(135deg,#1e3a6f,#3b6a9e);color:#fff;display:flex;align-items:center;justify-content:center;font-size:23px;font-weight:600;flex-shrink:0}
+.salProfileLeft h3{font-size:18px;font-weight:700;color:#0b1a2e}
+.salMeta{display:flex;flex-wrap:wrap;gap:6px 16px;margin-top:4px;font-size:13px;color:#4b6a8b}
+.salMeta span{display:inline-flex;align-items:center;gap:6px}
+.salMeta svg{width:14px;height:14px;color:#1e3a6f;flex-shrink:0}
+.salProfileRight{display:flex;gap:10px;flex-wrap:wrap}
+.salStatBadge{display:inline-flex;align-items:center;gap:6px;background:#fff;padding:7px 14px;border-radius:40px;font-size:12px;font-weight:500;border:1px solid #dce5ef;color:#4b6a8b}
+.salStatBadge svg{width:13px;height:13px;color:#1e3a6f}
+.salStatBadge b{color:#0b1a2e}
+.salCards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.salCard{background:#f8fafc;border:1px solid #e4ecf3;border-radius:15px;padding:14px 16px}
+.salCard .lbl{font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:#4b6a8b;font-weight:600}
+.salCard .val{font-size:20px;font-weight:700;color:#0b1a2e;margin-top:4px}
+.salCard.accBlue{border-left:4px solid #1e3a6f}
+.salCard.accGreen{border-left:4px solid #2e9c6b}
+.salCard.accOrange{border-left:4px solid #d48c3b}
+.salCard.accRed{border-left:4px solid #c24a4a}
+.salBox{background:#fff;border:1px solid #e4ecf3;border-radius:18px;padding:20px 22px 22px}
+.salBoxTitle{display:flex;align-items:center;gap:9px;font-size:16px;font-weight:700;color:#0b1a2e;margin-bottom:16px}
+.salBoxTitle svg{width:17px;height:17px;color:#1e3a6f}
+.salFormGrid{display:grid;grid-template-columns:1fr 1fr;gap:16px 24px}
+.salFull{grid-column:1/-1}
+.salField{display:flex;flex-direction:column;gap:5px;font-size:13px;font-weight:600;color:#1a2c42}
+.salField input,.salField select{padding:10px 14px;border:1px solid #dce5ef;border-radius:12px;font-size:14px;background:#fafcfe;outline:none;transition:.2s;width:100%;font-family:inherit;font-weight:400}
+.salField input:focus,.salField select:focus{border-color:#1e3a6f;box-shadow:0 0 0 3px rgba(30,58,111,.10);background:#fff}
+.salAdjust.hidden{display:none}
+.salAttRow{display:flex;align-items:center;gap:14px;padding:10px 14px;background:#f0f6ff;border-radius:12px;border:1px solid #dce8f5;margin-bottom:10px;flex-wrap:wrap}
+.salCheck{display:inline-flex;align-items:center;gap:9px;font-weight:600;font-size:14px;color:#1a2c42;cursor:pointer;margin:0}
+.salCheck input[type=checkbox]{width:17px;height:17px;accent-color:#1e3a6f;cursor:pointer;flex-shrink:0}
+.salCheck svg{width:15px;height:15px;color:#1e3a6f}
+.salAttInfo{font-size:12px;color:#4b6a8b;background:#fff;padding:3px 13px;border-radius:30px;border:1px solid #dce5ef}
+.salAttInfo b{color:#1e3a6f}
+.salAdjLbl{font-size:13px;font-weight:600;color:#1a2c42;display:block;margin:2px 0 8px}
+.salAdjLbl small{font-weight:400;color:#7a94b0;font-size:12px}
+.salAdjGrid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.salAdj{display:flex;align-items:center;gap:7px;background:#f8fafc;padding:6px 10px 6px 13px;border-radius:40px;border:1px solid #e4ecf3}
+.salAdj label{font-size:12px;font-weight:500;color:#1a2c42;white-space:nowrap}
+.salAdj input{width:64px;padding:5px 7px;border:1px solid #dce5ef;border-radius:30px;font-size:12px;text-align:center;background:#fff;outline:none;font-family:inherit}
+.salAdj input:focus{border-color:#1e3a6f}
+.salAdj .sign{font-weight:700;font-size:13px}
+.salAdj .sign.plus{color:#2e9c6b}
+.salAdj .sign.minus{color:#c24a4a}
+.salToggles{display:flex;flex-wrap:wrap;gap:12px 32px;padding:12px 0 4px;border-top:1px dashed #e4ecf3;margin-top:10px}
+.salPv{font-weight:700;color:#0b1a2e;background:#eef3f8;padding:1px 11px;border-radius:30px;font-size:12px}
+.salPaidRow{display:flex;align-items:center;gap:16px;padding:12px 14px;background:#f8fafc;border:1px solid #e4ecf3;border-radius:13px;flex-wrap:wrap}
+.salPaidRow label{display:inline-flex;align-items:center;gap:7px;font-weight:600;font-size:14px;color:#1a2c42;margin:0}
+.salPaidRow label svg{width:15px;height:15px;color:#1e3a6f}
+.salPaidRow input{width:150px;padding:8px 13px;border:1px solid #dce5ef;border-radius:30px;font-size:14px;font-weight:600;background:#fff;outline:none;text-align:center;font-family:inherit}
+.salPaidRow input:focus{border-color:#1e3a6f;box-shadow:0 0 0 3px rgba(30,58,111,.10)}
+.salPaidRow small{font-size:12px;color:#4b6a8b}
+.salSummary{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:14px;padding-top:14px;border-top:2px solid #eef3f8}
+.salSum{background:#f8fafc;border-radius:13px;padding:10px 14px;text-align:center}
+.salSum .sl{font-size:11px;text-transform:uppercase;color:#4b6a8b;font-weight:600;letter-spacing:.3px}
+.salSum .sv{font-size:20px;font-weight:700;color:#0b1a2e;margin-top:2px}
+.salSum.hiGreen .sv{color:#2e9c6b}
+.salSum.hiRed .sv{color:#c24a4a}
+.salSum.hiBlue .sv{color:#1e3a6f}
+.salActions{display:flex;gap:12px;margin-top:16px;flex-wrap:wrap;justify-content:flex-end}
+.salSave{display:inline-flex;align-items:center;gap:8px;padding:11px 26px;border:none;border-radius:40px;font-weight:600;font-size:14px;cursor:pointer;transition:.15s;background:#2e9c6b;color:#fff}
+.salSave svg{width:15px;height:15px}
+.salSave:hover{background:#248358;transform:translateY(-1px);box-shadow:0 8px 20px rgba(46,156,107,.25)}
+.salTableWrap{overflow-x:auto}
+.salTable{width:100%;border-collapse:collapse;font-size:13px}
+.salTable th{text-align:left;padding:9px 12px;background:#f8fafc;font-weight:600;color:#1a2c42;border-bottom:2px solid #e4ecf3;font-size:11px;text-transform:uppercase;letter-spacing:.3px;white-space:nowrap}
+.salTable td{padding:9px 12px;border-bottom:1px solid #eef3f8;color:#1a2c42;white-space:nowrap}
+.salTable tr:last-child td{border-bottom:none}
+.salBadge{display:inline-block;padding:3px 12px;border-radius:40px;font-size:11px;font-weight:600}
+.salBcur{background:#dce8f5;color:#1e3a6f}
+.salBdue{background:#fde8d6;color:#b86b2a}
+.salBadv{background:#d6f0e6;color:#1e7a56}
+.salBpaid{background:#d6f0e6;color:#1e7a56}
+.salBunpaid{background:#fde8d6;color:#b86b2a}
+.salDel{border:none;background:transparent;color:#c24a4a;font-size:16px;cursor:pointer;padding:2px 8px;border-radius:8px;line-height:1}
+.salDel:hover{background:#fdecea}
+.salEmpty{text-align:center;color:#7a94b0;padding:22px 10px;font-size:13px}
+@media (max-width:1024px){.salGrid{grid-template-columns:1fr}.salSide{max-height:300px}.salAdjGrid{grid-template-columns:1fr 1fr}.salSummary{grid-template-columns:1fr 1fr}}
+@media (max-width:640px){.salWrap{padding:14px}.salFormGrid{grid-template-columns:1fr}.salProfileLeft{flex-wrap:wrap}.salSummary{grid-template-columns:1fr 1fr}.salCards{grid-template-columns:1fr 1fr}.salToggles{flex-direction:column;gap:10px}.salActions{justify-content:stretch}.salActions .salGhost,.salActions .salSave{flex:1;justify-content:center}.salAttRow{flex-direction:column;align-items:flex-start}.salPaidRow{flex-direction:column;align-items:stretch}.salPaidRow input{width:100%}}
