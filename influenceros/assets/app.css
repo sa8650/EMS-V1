@@ -152,3 +152,4 @@ a{color:inherit;text-decoration:none}
 .chatbar{display:flex;gap:9px;padding:12px 14px;border-top:1px solid var(--border);background:#fff}
 .chatbar input{flex:1;border:1px solid var(--border);border-radius:9px;padding:10px 13px;font-size:13px;outline:none;background:#fafafa}
 .chatbar input:focus{border-color:#111;background:#fff}
+
