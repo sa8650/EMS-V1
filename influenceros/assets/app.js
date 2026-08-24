@@ -8,6 +8,11 @@ const api=async(path,opt={})=>{
   if(!r.ok)throw Error(x.error||'Request failed');
   return x;
 };
+const viewCache={};
+const dropCache=()=>{for(const k in viewCache)delete viewCache[k]};
+const mutate=async(path,opt={})=>{const r=await api(path,opt);dropCache();return r};
+const warm=()=>['overview','partners','projects','allocations','payments','performance'].forEach(k=>{if(!(k in viewCache))api(k).then(d=>viewCache[k]=d).catch(()=>{})});
+const typing=main=>main.contains(document.activeElement)&&/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName);
 const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const money=n=>'$'+Number(n||0).toLocaleString(undefined,{maximumFractionDigits:2});
 const num=v=>Number(v)||0;
@@ -197,7 +202,11 @@ async function renderAdmin(){
 
 /* ---------- ADMIN: DASHBOARD ---------- */
 async function aDashboard(main){
-  const d=await api('overview');
+  if(viewCache.overview)renderDashboard(main,viewCache.overview);else main.innerHTML='<p class="muted">Loading…</p>';
+  const d=await api('overview');viewCache.overview=d;
+  if(!typing(main))renderDashboard(main,d);
+}
+function renderDashboard(main,d){
   const k=d.kpis;
   const kpi=(l,v,c='')=>`<div class="card stat"><div><div class="label">${l}</div><div class="value">${v}</div>${c?`<div class="change">${c}</div>`:''}</div></div>`;
   main.innerHTML=`
@@ -232,16 +241,21 @@ async function aDashboard(main){
       </div>
     </div>
   </div>`;
+  warm();
   $('#seedBtn').onclick=async()=>{
     if(!confirm('Load demo data? This will REPLACE all existing partners, projects, allocations and payments in the InfluencerOS database.'))return;
-    try{const r=await api('demo-seed',{method:'POST'});toast(`Demo data loaded — ${r.partners} partners, ${r.projects} projects. Partner password: ${r.partnerPassword}`);renderAdmin()}catch(e){toast(e.message)}
+    try{const r=await mutate('demo-seed',{method:'POST'});toast(`Demo data loaded — ${r.partners} partners, ${r.projects} projects. Partner password: ${r.partnerPassword}`);renderAdmin()}catch(e){toast(e.message)}
   };
 }
 
 /* ---------- ADMIN: PARTNERS ---------- */
 let pFilter={q:'',type:'',status:''};
 async function aPartners(main){
-  const partners=await api('partners');
+  if(viewCache.partners)renderPartnersView(main,viewCache.partners);else main.innerHTML='<p class="muted">Loading…</p>';
+  const partners=await api('partners');viewCache.partners=partners;
+  if(!typing(main))renderPartnersView(main,partners);
+}
+function renderPartnersView(main,partners){
   const list=partners.filter(p=>(!pFilter.type||p.type===pFilter.type)&&(!pFilter.status||p.status===pFilter.status)&&(!pFilter.q||(p.name+' '+p.email+' '+p.partner_code).toLowerCase().includes(pFilter.q.toLowerCase())));
   main.innerHTML=`
   <div class="top"><div class="title"><h1>Partners</h1><p>Manage marketing agents, YouTubers, TikTokers and agencies.</p></div>
@@ -263,11 +277,11 @@ async function aPartners(main){
     <td class="actions-cell"><button class="btn small" data-edit="${p.id}">Edit</button><button class="btn small danger" data-del="${p.id}">×</button></td>
   </tr>`).join(''):'<tr><td colspan="11" class="empty">No partners found.</td></tr>'}</tbody></table></div></div>`;
   $('#addPartner').onclick=()=>partnerModal(null,partners);
-  $('#pq').oninput=e=>{pFilter.q=e.target.value;aPartners(main)};
-  $('#ptype').onchange=e=>{pFilter.type=e.target.value;aPartners(main)};
-  $('#pstatus').onchange=e=>{pFilter.status=e.target.value;aPartners(main)};
+  $('#pq').oninput=e=>{pFilter.q=e.target.value;renderPartnersView(main,partners)};
+  $('#ptype').onchange=e=>{pFilter.type=e.target.value;renderPartnersView(main,partners)};
+  $('#pstatus').onchange=e=>{pFilter.status=e.target.value;renderPartnersView(main,partners)};
   main.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>{const p=partners.find(x=>x.id===b.dataset.edit);partnerModal(p,partners)});
-  main.querySelectorAll('[data-del]').forEach(b=>b.onclick=async()=>{if(!confirm('Delete this partner and all their allocations/payments?'))return;try{await api('partners/'+b.dataset.del,{method:'DELETE'});toast('Partner deleted.');renderAdmin()}catch(e){toast(e.message)}});
+  main.querySelectorAll('[data-del]').forEach(b=>b.onclick=async()=>{if(!confirm('Delete this partner and all their allocations/payments?'))return;try{await mutate('partners/'+b.dataset.del,{method:'DELETE'});toast('Partner deleted.');renderAdmin()}catch(e){toast(e.message)}});
 }
 function partnerModal(p,all){
   const accounts=(p?.accounts&&p.accounts.length?p.accounts:[{label:'',url:''}]);
@@ -308,8 +322,8 @@ function partnerModal(p,all){
       type:ov.querySelector('#fType').value,accounts:accountsList,password:ov.querySelector('#fPass').value||undefined,
       login_access:ov.querySelector('#fAccess').value==='yes',status:ov.querySelector('#fStatus').value,note:ov.querySelector('#fNote').value};
     try{
-      if(p){await api('partners/'+p.id,{method:'PATCH',body:JSON.stringify(payload)});toast('Partner updated.')}
-      else{const r=await api('partners',{method:'POST',body:JSON.stringify(payload)});ov.remove();modal(`<h2>Partner created</h2><p>Share these credentials with the partner.</p><div class="kv"><span>Partner ID</span><b style="font-size:20px">${esc(r.partner_code)}</b><span>Email</span><b>${esc(r.email)}</b><span>Login</span><b>Partner ID or email + password</b></div><div class="modal-actions"><button class="btn dark" data-close>Done</button></div>`);toast('Partner added — ID '+r.partner_code);renderAdmin();return}
+      if(p){await mutate('partners/'+p.id,{method:'PATCH',body:JSON.stringify(payload)});toast('Partner updated.')}
+      else{const r=await mutate('partners',{method:'POST',body:JSON.stringify(payload)});ov.remove();modal(`<h2>Partner created</h2><p>Share these credentials with the partner.</p><div class="kv"><span>Partner ID</span><b style="font-size:20px">${esc(r.partner_code)}</b><span>Email</span><b>${esc(r.email)}</b><span>Login</span><b>Partner ID or email + password</b></div><div class="modal-actions"><button class="btn dark" data-close>Done</button></div>`);toast('Partner added — ID '+r.partner_code);renderAdmin();return}
       ov.remove();renderAdmin();
     }catch(e){toast(e.message)}
   };
@@ -317,7 +331,11 @@ function partnerModal(p,all){
 
 /* ---------- ADMIN: PROJECTS ---------- */
 async function aProjects(main){
-  const projects=await api('projects');
+  if(viewCache.projects)renderProjectsView(main,viewCache.projects);else main.innerHTML='<p class="muted">Loading…</p>';
+  const projects=await api('projects');viewCache.projects=projects;
+  if(!typing(main))renderProjectsView(main,projects);
+}
+function renderProjectsView(main,projects){
   main.innerHTML=`
   <div class="top"><div class="title"><h1>Projects</h1><p>Track project targets, assigned partners, user acquisition and budget.</p></div>
   <div class="actions"><button class="btn dark" id="addProject">+ Add project</button></div></div>
@@ -334,7 +352,7 @@ async function aProjects(main){
     </div>`).join(''):'<div class="empty" style="grid-column:1/-1">No projects yet.</div>'}</div>`;
   $('#addProject').onclick=()=>projectModal(null);
   main.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>projectModal(projects.find(x=>x.id===b.dataset.edit)));
-  main.querySelectorAll('[data-del]').forEach(b=>b.onclick=async()=>{if(!confirm('Delete this project and its allocations/payments?'))return;try{await api('projects/'+b.dataset.del,{method:'DELETE'});toast('Project deleted.');renderAdmin()}catch(e){toast(e.message)}});
+  main.querySelectorAll('[data-del]').forEach(b=>b.onclick=async()=>{if(!confirm('Delete this project and its allocations/payments?'))return;try{await mutate('projects/'+b.dataset.del,{method:'DELETE'});toast('Project deleted.');renderAdmin()}catch(e){toast(e.message)}});
 }
 function projectModal(p){
   const ov=modal(`
@@ -351,8 +369,8 @@ function projectModal(p){
   ov.querySelector('#jSave').onclick=async()=>{
     const payload={name:ov.querySelector('#jName').value,details:ov.querySelector('#jDetails').value,budget:num(ov.querySelector('#jBudget').value),status:ov.querySelector('#jStatus').value,note:ov.querySelector('#jNote').value};
     try{
-      if(p)await api('projects/'+p.id,{method:'PATCH',body:JSON.stringify(payload)});
-      else await api('projects',{method:'POST',body:JSON.stringify(payload)});
+      if(p)await mutate('projects/'+p.id,{method:'PATCH',body:JSON.stringify(payload)});
+      else await mutate('projects',{method:'POST',body:JSON.stringify(payload)});
       ov.remove();toast(p?'Project updated.':'Project added.');renderAdmin();
     }catch(e){toast(e.message)}
   };
@@ -361,7 +379,13 @@ function projectModal(p){
 /* ---------- ADMIN: ALLOCATIONS ---------- */
 let aFilterQ='';
 async function aAllocations(main){
-  const [allocs,projects,partners]=await Promise.all([api('allocations'),api('projects'),api('partners')]);
+  const c=viewCache.allocations;
+  if(c)renderAllocationsView(main,c.allocs,c.projects,c.partners);else main.innerHTML='<p class="muted">Loading…</p>';
+  const bundle=await Promise.all([api('allocations'),api('projects'),api('partners')]);
+  viewCache.allocations={allocs:bundle[0],projects:bundle[1],partners:bundle[2]};
+  if(!typing(main))renderAllocationsView(main,bundle[0],bundle[1],bundle[2]);
+}
+function renderAllocationsView(main,allocs,projects,partners){
   const list=allocs.filter(a=>!aFilterQ||(a.partner_name+' '+a.project_name).toLowerCase().includes(aFilterQ.toLowerCase()));
   const agree=partners.filter(p=>p.status==='agree');
   main.innerHTML=`
@@ -378,9 +402,9 @@ async function aAllocations(main){
     <td class="actions-cell"><button class="btn small" data-edit="${a.id}">Edit</button><button class="btn small danger" data-del="${a.id}">×</button></td>
   </tr>`).join(''):'<tr><td colspan="8" class="empty">No allocations yet.</td></tr>'}</tbody></table></div></div>`;
   $('#addAlloc').onclick=()=>allocationModal(null,projects,agree,allocs);
-  $('#aq').oninput=e=>{aFilterQ=e.target.value;aAllocations(main)};
+  $('#aq').oninput=e=>{aFilterQ=e.target.value;renderAllocationsView(main,allocs,projects,partners)};
   main.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>allocationModal(allocs.find(x=>x.id===b.dataset.edit),projects,agree,allocs));
-  main.querySelectorAll('[data-del]').forEach(b=>b.onclick=async()=>{if(!confirm('Delete this allocation?'))return;try{await api('allocations/'+b.dataset.del,{method:'DELETE'});toast('Allocation deleted.');renderAdmin()}catch(e){toast(e.message)}});
+  main.querySelectorAll('[data-del]').forEach(b=>b.onclick=async()=>{if(!confirm('Delete this allocation?'))return;try{await mutate('allocations/'+b.dataset.del,{method:'DELETE'});toast('Allocation deleted.');renderAdmin()}catch(e){toast(e.message)}});
 }
 function allocationModal(a,projects,agreePartners,existing){
   const editable=!!a;
@@ -403,8 +427,8 @@ function allocationModal(a,projects,agreePartners,existing){
     const projectId=ov.querySelector('#lProject').value,partnerId=ov.querySelector('#lPartner').value;
     const payload={assigned_target:Math.round(num(ov.querySelector('#lTarget').value)),acquired_users:Math.round(num(ov.querySelector('#lAcquired').value)),commission:num(ov.querySelector('#lCommission').value),status:ov.querySelector('#lStatus').value,note:ov.querySelector('#lNote').value};
     try{
-      if(editable)await api('allocations/'+a.id,{method:'PATCH',body:JSON.stringify(payload)});
-      else await api('allocations',{method:'POST',body:JSON.stringify({project_id:projectId,partner_id:partnerId,...payload})});
+      if(editable)await mutate('allocations/'+a.id,{method:'PATCH',body:JSON.stringify(payload)});
+      else await mutate('allocations',{method:'POST',body:JSON.stringify({project_id:projectId,partner_id:partnerId,...payload})});
       ov.remove();toast(editable?'Allocation updated.':'Allocation added.');renderAdmin();
     }catch(e){toast(e.message)}
   };
@@ -413,7 +437,13 @@ function allocationModal(a,projects,agreePartners,existing){
 /* ---------- ADMIN: PAYMENTS ---------- */
 let payFilterQ='';
 async function aPayments(main){
-  const [payments,partners]=await Promise.all([api('payments'),api('partners')]);
+  const c=viewCache.payments;
+  if(c)renderPaymentsView(main,c.payments,c.partners);else main.innerHTML='<p class="muted">Loading…</p>';
+  const bundle=await Promise.all([api('payments'),api('partners')]);
+  viewCache.payments={payments:bundle[0],partners:bundle[1]};
+  if(!typing(main))renderPaymentsView(main,bundle[0],bundle[1]);
+}
+function renderPaymentsView(main,payments,partners){
   const list=payments.filter(p=>!payFilterQ||(p.partner_name+' '+p.project_name+String(p.transaction_id||'')).toLowerCase().includes(payFilterQ.toLowerCase()));
   main.innerHTML=`
   <div class="top"><div class="title"><h1>Payments</h1><p>Partner payouts with automatic available-balance validation.</p></div>
@@ -428,9 +458,9 @@ async function aPayments(main){
     <td class="actions-cell">${p.status!=='paid'?`<button class="btn small" data-paid="${p.id}">Mark paid</button>`:''}<button class="btn small danger" data-del="${p.id}">×</button></td>
   </tr>`).join(''):'<tr><td colspan="9" class="empty">No payments yet.</td></tr>'}</tbody></table></div></div>`;
   $('#addPay').onclick=()=>paymentModal(null,partners);
-  $('#payq').oninput=e=>{payFilterQ=e.target.value;aPayments(main)};
-  main.querySelectorAll('[data-paid]').forEach(b=>b.onclick=async()=>{try{await api('payments/'+b.dataset.paid,{method:'PATCH',body:JSON.stringify({status:'paid'})});toast('Payment marked as paid.');renderAdmin()}catch(e){toast(e.message)}});
-  main.querySelectorAll('[data-del]').forEach(b=>b.onclick=async()=>{if(!confirm('Delete this payment?'))return;try{await api('payments/'+b.dataset.del,{method:'DELETE'});toast('Payment deleted.');renderAdmin()}catch(e){toast(e.message)}});
+  $('#payq').oninput=e=>{payFilterQ=e.target.value;renderPaymentsView(main,payments,partners)};
+  main.querySelectorAll('[data-paid]').forEach(b=>b.onclick=async()=>{try{await mutate('payments/'+b.dataset.paid,{method:'PATCH',body:JSON.stringify({status:'paid'})});toast('Payment marked as paid.');renderAdmin()}catch(e){toast(e.message)}});
+  main.querySelectorAll('[data-del]').forEach(b=>b.onclick=async()=>{if(!confirm('Delete this payment?'))return;try{await mutate('payments/'+b.dataset.del,{method:'DELETE'});toast('Payment deleted.');renderAdmin()}catch(e){toast(e.message)}});
 }
 function paymentModal(pay,partners){
   const ov=modal(`
@@ -475,7 +505,7 @@ function paymentModal(pay,partners){
     if(!projSel.value||!partnerSel.value)return toast('Select a project and partner.');
     if(p&&amount>p.balance)return toast(`Payment amount cannot exceed available balance (${money(p.balance)}).`);
     try{
-      await api('payments',{method:'POST',body:JSON.stringify({project_id:projSel.value,partner_id:partnerSel.value,payment_date:ov.querySelector('#yDate').value,amount,method:ov.querySelector('#yMethod').value,status:ov.querySelector('#yStatus').value,transaction_id:ov.querySelector('#yTxn').value})});
+      await mutate('payments',{method:'POST',body:JSON.stringify({project_id:projSel.value,partner_id:partnerSel.value,payment_date:ov.querySelector('#yDate').value,amount,method:ov.querySelector('#yMethod').value,status:ov.querySelector('#yStatus').value,transaction_id:ov.querySelector('#yTxn').value})});
       ov.remove();toast('Payment added.');renderAdmin();
     }catch(e){toast(e.message)}
   };
@@ -483,7 +513,11 @@ function paymentModal(pay,partners){
 
 /* ---------- ADMIN: PERFORMANCE ---------- */
 async function aPerformance(main){
-  const rows=await api('performance');
+  if(viewCache.performance)renderPerformanceView(main,viewCache.performance);else main.innerHTML='<p class="muted">Loading…</p>';
+  const rows=await api('performance');viewCache.performance=rows;
+  if(!typing(main))renderPerformanceView(main,rows);
+}
+function renderPerformanceView(main,rows){
   main.innerHTML=`
   <div class="top"><div class="title"><h1>Performance</h1><p>Partner achievement against acquisition targets — ranked automatically.</p></div></div>
   <div class="section-box"><div style="overflow:auto"><table class="view-table"><thead><tr><th>Rank</th><th>Partner</th><th>Projects</th><th>Assigned users</th><th>Acquired users</th><th>Achievement</th></tr></thead>
@@ -529,7 +563,11 @@ async function renderPartner(){
   }catch(e){main.innerHTML=`<div class="empty">${esc(e.message)}</div>`}
 }
 async function pProfile(main){
-  const me=await api('me/profile');
+  if(viewCache['me/profile'])renderPProfile(main,viewCache['me/profile']);else main.innerHTML='<p class="muted">Loading…</p>';
+  const me=await api('me/profile');viewCache['me/profile']=me;
+  if(!typing(main))renderPProfile(main,me);
+}
+function renderPProfile(main,me){
   main.innerHTML=`
   <div class="top"><div class="title"><h1>My profile</h1><p>Your partner account information.</p></div>
   <div class="actions"><button class="btn dark" id="editProfile">Edit profile</button></div></div>
@@ -549,14 +587,18 @@ async function pProfile(main){
       <div class="field"><label>New password</label><input id="npass" type="password" placeholder="Minimum 6 characters"></div>
       <div class="modal-actions"><button class="btn" data-close>Cancel</button><button class="btn dark" id="npGo">Save password</button></div>`);
     ov.querySelector('#npGo').onclick=async()=>{
-      try{await api('me/password',{method:'POST',body:JSON.stringify({password:ov.querySelector('#npass').value})});ov.remove();toast('Password updated.')}
+      try{await mutate('me/password',{method:'POST',body:JSON.stringify({password:ov.querySelector('#npass').value})});ov.remove();toast('Password updated.')}
       catch(e){toast(e.message)}
     };
   };
 }
 async function pOverview(main,view){
-  const d=await api('me/overview');
-  if(view==='projects'){
+  const render=d=>{if(view==='projects')renderPProjects(main,d);else if(view==='payments')renderPPayments(main,d);else renderPPerformance(main,d)};
+  if(viewCache['me/overview'])render(viewCache['me/overview']);
+  const d=await api('me/overview');viewCache['me/overview']=d;
+  if(!typing(main))render(d);
+}
+function renderPProjects(main,d){
     main.innerHTML=`<div class="top"><div class="title"><h1>My projects</h1><p>Projects allocated to your account.</p></div></div>
     <div class="project-grid">${d.projects.length?d.projects.map(x=>`
       <div class="project-card"><div class="detail-head"><div><h3>${esc(x.project?.name||'—')}</h3><p>${esc(x.project?.details||'')}</p></div>${projPill(x.project?.status||'active')}</div>
@@ -565,8 +607,8 @@ async function pOverview(main,view){
         <div class="progress-lg"><i style="width:${Math.min(100,x.pct)}%"></i></div>
         <div class="meta"><span>${x.pct}% achieved</span><span>${money(x.commission)} commission</span></div>
       </div>`).join(''):'<div class="empty" style="grid-column:1/-1">No projects allocated to you yet.</div>'}</div>`;
-  }
-  if(view==='payments'){
+}
+function renderPPayments(main,d){
     main.innerHTML=`<div class="top"><div class="title"><h1>My payments</h1><p>Earnings and payout history.</p></div></div>
     <div class="kpi-grid">
       <div class="card stat"><div><div class="label">Total Earnings</div><div class="value">${money(d.stats.income)}</div></div></div>
@@ -575,8 +617,8 @@ async function pOverview(main,view){
     </div>
     <div class="section-box"><div class="toolbar"><h2>Payout history</h2></div><div style="overflow:auto"><table class="view-table"><thead><tr><th>Payment ID</th><th>Date</th><th>Project</th><th>Amount</th><th>Method</th><th>Status</th></tr></thead>
     <tbody>${d.payments.length?d.payments.map(p=>`<tr><td><b>${esc(String(p.id).slice(0,8).toUpperCase())}</b></td><td>${fmtDate(p.payment_date)}</td><td>${esc(p.project_name)}</td><td><b>${money(p.amount)}</b></td><td>${esc(p.method)}</td><td>${pill(PAY_STATUS,p.status)}</td></tr>`).join(''):'<tr><td colspan="6" class="empty">No payments yet.</td></tr>'}</tbody></table></div></div>`;
-  }
-  if(view==='performance'){
+}
+function renderPPerformance(main,d){
     main.innerHTML=`<div class="top"><div class="title"><h1>My performance</h1><p>Your achievement across all allocated projects.</p></div></div>
     <div class="kpi-grid">
       <div class="card stat"><div><div class="label">Total Projects</div><div class="value">${d.performance.projects}</div></div></div>
@@ -586,7 +628,6 @@ async function pOverview(main,view){
     </div>
     <div class="section-box"><div class="toolbar"><h2>Project-wise performance</h2></div><div style="overflow:auto"><table class="view-table"><thead><tr><th>Project</th><th>My target</th><th>My acquired</th><th>Achievement</th><th>Commission</th><th>Status</th></tr></thead>
     <tbody>${d.projects.length?d.projects.map(x=>`<tr><td><b>${esc(x.project?.name||'—')}</b></td><td>${num(x.assigned_target).toLocaleString()}</td><td>${num(x.acquired_users).toLocaleString()}</td><td>${x.pct}%</td><td>${money(x.commission)}</td><td>${pill(ALLOC_STATUS,x.status)}</td></tr>`).join(''):'<tr><td colspan="6" class="empty">No allocations yet.</td></tr>'}</tbody></table></div></div>`;
-  }
 }
 
 /* ═══════════ BOOT ═══════════ */
