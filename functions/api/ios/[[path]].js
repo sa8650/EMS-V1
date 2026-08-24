@@ -24,8 +24,7 @@ const publicPartner=p=>{delete p.password_hash;return p};
 
 async function partnerStats(env,ids){
   const want=ids&&ids.length?ids:null;
-  let allocs=await db(env,'allocations?select=partner_id,project_id,assigned_target,acquired_users,commission');
-  let pays=await db(env,'payments?select=partner_id,amount,status');
+  let [allocs,pays]=await Promise.all([db(env,'allocations?select=partner_id,project_id,assigned_target,acquired_users,commission'),db(env,'payments?select=partner_id,amount,status')]);
   const map={};
   const slot=id=>map[id]??={projects:0,acquired:0,income:0,paid:0};
   for(const a of allocs){if(want&&!want.includes(a.partner_id))continue;const s=slot(a.partner_id);s.projects++;s.acquired+=num(a.acquired_users);s.income+=num(a.commission);}
@@ -102,21 +101,24 @@ export async function onRequest(context){
         return json({ok:true});
       }
       if(path==='me/overview'&&method==='GET'){
-        let {stats}=await partnerStats(env,[s.id]);
-        let allocs=await db(env,`allocations?partner_id=eq.${s.id}&select=*&order=created_at.desc`);
-        let projects=allocs.length?await db(env,'projects?select=*'):[];
-
-        let pays=await db(env,`payments?partner_id=eq.${s.id}&select=*&order=payment_date.desc,created_at.desc`);
+        let [allocs,pays,projects,allAllocs,allPays]=await Promise.all([
+          db(env,`allocations?partner_id=eq.${s.id}&select=*&order=created_at.desc`),
+          db(env,`payments?partner_id=eq.${s.id}&select=*&order=payment_date.desc,created_at.desc`),
+          db(env,'projects?select=*'),
+          db(env,'allocations?select=partner_id,assigned_target,acquired_users'),
+          db(env,'payments?select=partner_id,amount,status')]);
         const projectMap=Object.fromEntries(projects.map(x=>[x.id,x]));
+        const incomeSum=allocs.reduce((a,x)=>a+num(x.commission),0);
+        const paidSum=allPays.filter(p=>p.partner_id===s.id&&p.status==='paid').reduce((a,p)=>a+num(p.amount),0);
+        const stats={projects:new Set(allocs.map(a=>a.project_id)).size,acquired:allocs.reduce((a,x)=>a+num(x.acquired_users),0),income:Math.round(incomeSum*100)/100,paid:Math.round(paidSum*100)/100,balance:Math.round((incomeSum-paidSum)*100)/100};
         const assigned=allocs.reduce((a,x)=>a+num(x.assigned_target),0),acquired=allocs.reduce((a,x)=>a+num(x.acquired_users),0);
-        let allAllocs=await db(env,'allocations?select=partner_id,assigned_target,acquired_users');
         const byPartner={};
         for(const a of allAllocs){byPartner[a.partner_id]??={assigned:0,acquired:0};byPartner[a.partner_id].assigned+=num(a.assigned_target);byPartner[a.partner_id].acquired+=num(a.acquired_users);}
         const ranked=Object.entries(byPartner).map(([pid,v])=>({id:pid,...v,pct:v.assigned>0?Math.round(v.acquired/v.assigned*100):0})).sort((a,b)=>b.pct-a.pct||b.acquired-a.acquired);
         const rank=ranked.findIndex(x=>x.id===s.id)+1;
         return json({
           profile:null,
-          stats:stats[s.id]||{projects:0,acquired:0,income:0,paid:0,balance:0},
+          stats,
           projects:allocs.map(a=>({id:a.id,project:projectMap[a.project_id]||null,assigned_target:a.assigned_target,acquired_users:a.acquired_users,commission:a.commission,status:a.status,note:a.note,pct:num(a.assigned_target)>0?Math.round(num(a.acquired_users)/num(a.assigned_target)*100):0})),
           payments:pays.map(p=>payToRow(p,projectMap,{[s.id]:{name:'',partner_code:''}})),
           performance:{projects:allocs.length,assigned,acquired,pct:assigned>0?Math.round(acquired/assigned*100):0,rank:rank||null,total:ranked.length}
@@ -155,10 +157,11 @@ export async function onRequest(context){
     }
 
     if(path==='partners'&&method==='GET'){
-      let partners=await db(env,'partners?select=*&order=created_at.desc');
-      let projects=await db(env,'projects?select=id,name');
-      let allocs=await db(env,'allocations?select=partner_id,project_id,assigned_target,acquired_users,commission');
-      let pays=await db(env,'payments?select=partner_id,amount,status');
+      let [partners,projects,allocs,pays]=await Promise.all([
+        db(env,'partners?select=*&order=created_at.desc'),
+        db(env,'projects?select=id,name'),
+        db(env,'allocations?select=partner_id,project_id,assigned_target,acquired_users,commission'),
+        db(env,'payments?select=partner_id,amount,status')]);
       const projectMap=Object.fromEntries(projects.map(x=>[x.id,x.name]));
       return json(partners.map(p=>{
         const rows=allocs.filter(a=>a.partner_id===p.id);
@@ -300,8 +303,9 @@ export async function onRequest(context){
     }
 
     if(path==='performance'&&method==='GET'){
-      let allocs=await db(env,'allocations?select=partner_id,assigned_target,acquired_users,project_id');
-      let partners=await db(env,'partners?select=id,name,partner_code,type');
+      let [allocs,partners]=await Promise.all([
+        db(env,'allocations?select=partner_id,assigned_target,acquired_users,project_id'),
+        db(env,'partners?select=id,name,partner_code,type')]);
       const map={};
       for(const a of allocs){map[a.partner_id]??={projects:new Set(),assigned:0,acquired:0};map[a.partner_id].projects.add(a.project_id);map[a.partner_id].assigned+=num(a.assigned_target);map[a.partner_id].acquired+=num(a.acquired_users);}
       const rows=partners.map(p=>({id:p.id,name:p.name,partner_code:p.partner_code,type:p.type,projects:(map[p.id]?.projects.size)||0,assigned:(map[p.id]?.assigned)||0,acquired:(map[p.id]?.acquired)||0,pct:(map[p.id]&&map[p.id].assigned>0)?Math.round(map[p.id].acquired/map[p.id].assigned*100):0})).sort((a,b)=>b.pct-a.pct||b.acquired-a.acquired);
