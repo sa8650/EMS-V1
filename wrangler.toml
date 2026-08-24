@@ -9,3 +9,8 @@ binding = "AI"
 [[r2_buckets]]
 binding = "VAULTIUM"
 bucket_name = "emsvaultium"
+
+# R2 bucket for InfluencerOS contribution proofs (separate bucket)
+[[r2_buckets]]
+binding = "IOS_PROOF"
+bucket_name = "influenceros-proof"
