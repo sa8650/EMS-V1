@@ -770,7 +770,7 @@ async function pProfile(main){
 function renderPProfile(main,me){
   main.innerHTML=`
   <div class="top"><div class="title"><h1>My profile</h1><p>Your partner account information.</p></div>
-  <div class="actions"><button class="btn dark" id="editProfile">Edit profile</button></div></div>
+  <div class="actions"><button class="btn" id="payMethodsBtn">Payment method</button><button class="btn dark" id="editProfile">Edit profile</button></div></div>
   <div class="section-box">
     <div class="detail-head"><div style="display:flex;gap:14px;align-items:center"><div class="avatar" style="width:52px;height:52px;font-size:16px">${esc(initials(me.name))}</div><div><h2>${esc(me.name)}</h2><p>Agent ID <b>#${esc(me.partner_code)}</b></p></div></div><span class="pill ${me.login_access?'green':'red'}">${me.login_access?'Login enabled':'Login disabled'}</span></div>
     <div class="kv" style="margin-top:14px">
@@ -781,7 +781,26 @@ function renderPProfile(main,me){
     </div>
     <div class="section-head" style="margin-top:18px"><h2>Social accounts</h2></div>
     ${(me.accounts||[]).length?me.accounts.map(a=>`<div class="target-row"><b>${esc(a.label||'Account')}</b><span style="grid-column:2/5"><a href="${esc(a.url)}" target="_blank" rel="noopener">${esc(a.url)}</a></span></div>`).join(''):'<p class="muted" style="font-size:12px">No social accounts saved.</p>'}
+    <div id="payMethodsBox"><div class="section-head" style="margin-top:18px"><h2>Payment methods</h2></div><p class="muted" style="font-size:12px">Loading…</p></div>
   </div>`;
+  const paintPayMethods=rows=>{
+    const box=$('#payMethodsBox');if(!box)return;
+    box.innerHTML=`<div class="section-head" style="margin-top:18px"><h2>Payment methods</h2><span class="muted">Withdrawal details (max 5)</span></div>
+    <div style="overflow:auto"><table class="view-table"><thead><tr><th>Method</th><th>Details</th><th>Type</th><th></th></tr></thead>
+    <tbody>${rows.length?rows.map(pm=>`<tr>
+      <td><b>${pm.method==='bkash'?'bKash':pm.method==='nagad'?'Nagad':'Crypto — USDT (TRC20)'}</b></td>
+      <td>${esc(pm.method==='crypto_usdt'?pm.wallet_address:pm.account_number)}</td>
+      <td>${pm.method==='crypto_usdt'?'Wallet':pm.account_type==='agent'?'Agent number':'Personal number'}</td>
+      <td class="actions-cell"><button class="btn small" data-pm-edit="${pm.id}">Edit</button><button class="btn small danger" data-pm-del="${pm.id}">×</button></td>
+    </tr>`).join(''):'<tr><td colspan="4" class="empty">No payment method saved yet.</td></tr>'}</tbody></table></div>`;
+    box.querySelectorAll('[data-pm-edit]').forEach(b=>b.onclick=()=>paymentMethodModal(rows.find(x=>x.id===b.dataset.pmEdit),paintPayMethods));
+    box.querySelectorAll('[data-pm-del]').forEach(b=>b.onclick=async()=>{
+      if(!confirm('Delete this payment method?'))return;
+      try{await mutate('me/payment-methods/'+b.dataset.pmDel,{method:'DELETE'});toast('Payment method deleted.');paintPayMethods(await api('me/payment-methods'))}catch(e){toast(e.message)}
+    });
+  };
+  api('me/payment-methods').then(paintPayMethods).catch(()=>{const b=$('#payMethodsBox');if(b)b.innerHTML='<p class="muted" style="font-size:12px">Payment methods unavailable.</p>'});
+  $('#payMethodsBtn').onclick=()=>paymentMethodModal(null,paintPayMethods);
   $('#editProfile').onclick=()=>{
     const accounts=(me.accounts&&me.accounts.length?me.accounts:[{label:'',url:''}]);
     const ov=modal(`
@@ -852,6 +871,51 @@ function renderPPerformance(main,d){
     <tbody>${d.projects.length?d.projects.map(x=>`<tr><td><b>${esc(x.project?.name||'—')}</b></td><td>${num(x.assigned_target).toLocaleString()}</td><td>${num(x.acquired_users).toLocaleString()}</td><td>${x.pct}%</td><td>${money(x.commission)}</td><td>${pill(ALLOC_STATUS,x.status)}</td></tr>`).join(''):'<tr><td colspan="6" class="empty">No allocations yet.</td></tr>'}</tbody></table></div></div>`;
 }
 
+/* ---------- AGENT: PAYMENT METHOD MODAL ---------- */
+function paymentMethodModal(existing,paint){
+  const pm=existing||{method:'',account_number:'',account_type:'',wallet_address:''};
+  const ov=modal(`
+    <h2>${existing?'Edit payment method':'Add payment method'}</h2>
+    <p>Withdrawal details — you can save up to 5 methods.</p>
+    <div class="field"><label>Payment method</label><select id="pmMethod">
+      <option value="">Select method…</option>
+      <option value="bkash" ${pm.method==='bkash'?'selected':''}>bKash</option>
+      <option value="nagad" ${pm.method==='nagad'?'selected':''}>Nagad</option>
+      <option value="crypto_usdt" ${pm.method==='crypto_usdt'?'selected':''}>Crypto — USDT (TRC20)</option>
+    </select></div>
+    <div id="pmWallet" class="field" style="display:none"><label>USDT TRC20 wallet address</label><input id="pmWalletInput" placeholder="T… (TRC20 address)" value="${esc(pm.wallet_address||'')}"></div>
+    <div id="pmNumberBox" style="display:none">
+      <div class="field"><label id="pmNumberLabel">Number</label><input id="pmNumber" placeholder="01XXXXXXXXX" value="${esc(pm.account_number||'')}"></div>
+      <div class="field"><label>Choose account type</label><select id="pmType">
+        <option value="">Select…</option>
+        <option value="agent" ${pm.account_type==='agent'?'selected':''}>Agent Number</option>
+        <option value="personal" ${pm.account_type==='personal'?'selected':''}>Personal Number</option>
+      </select></div>
+    </div>
+    <div class="modal-actions"><button class="btn" data-close>Cancel</button><button class="btn dark" id="pmSave">${existing?'Save changes':'Save method'}</button></div>`);
+  const methodSel=ov.querySelector('#pmMethod');
+  const sync=()=>{
+    const v=methodSel.value;
+    ov.querySelector('#pmWallet').style.display=v==='crypto_usdt'?'flex':'none';
+    ov.querySelector('#pmNumberBox').style.display=(v==='bkash'||v==='nagad')?'block':'none';
+    ov.querySelector('#pmNumberLabel').textContent=(v==='bkash'?'bKash':v==='nagad'?'Nagad':'')+' Number';
+  };
+  methodSel.onchange=sync;sync();
+  ov.querySelector('#pmSave').onclick=async()=>{
+    const v=methodSel.value;
+    if(!v)return toast('Select a payment method.');
+    const payload={method:v};
+    if(v==='crypto_usdt')payload.wallet_address=ov.querySelector('#pmWalletInput').value;
+    else{payload.account_number=ov.querySelector('#pmNumber').value;payload.account_type=ov.querySelector('#pmType').value}
+    const btn=ov.querySelector('#pmSave');btn.disabled=true;btn.textContent='Saving…';
+    try{
+      await mutate(existing?'me/payment-methods/'+existing.id:'me/payment-methods',{method:existing?'PATCH':'POST',body:JSON.stringify(payload)});
+      ov.remove();toast(existing?'Payment method updated.':'Payment method saved.');
+      if(paint)paint(await api('me/payment-methods'));
+    }catch(e){toast(e.message);btn.disabled=false;btn.textContent=existing?'Save changes':'Save method'}
+  };
+}
+
 /* ---------- PARTNER: CONTRIBUTE ---------- */
 async function pContribute(main){
   if(viewCache['contributions/mine'])renderPContribute(main,viewCache['contributions/mine']);else main.innerHTML='<p class="muted">Loading…</p>';
@@ -899,8 +963,10 @@ function contributeModal(){
     fd.append('acquired',m.querySelector('#cAcquired').value);
     fd.append('note',m.querySelector('#cNote').value);
     picked.forEach(f=>fd.append('file',f));
+    const btn=m.querySelector('#cGo');
+    btn.disabled=true;btn.textContent='Sending…';
     try{await upload('contributions',fd);dropCache();m.remove();toast('Contribution request sent for review.');renderPartner()}
-    catch(e){toast(e.message)}
+    catch(e){toast(e.message);btn.disabled=false;btn.textContent='Send request'}
   };
 }
 
@@ -942,4 +1008,3 @@ function boot(){
   landing();
 }
 boot();
-
