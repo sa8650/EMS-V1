@@ -138,6 +138,40 @@ export async function onRequest(context){
         await Promise.all(logs.map(L=>db(env,'partner_logs',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({partner_id:s.id,field:L.field,old_value:L.old_value,new_value:L.new_value})})));
         return json(publicPartner(out));
       }
+      const validatePaymentMethod=b=>{
+        const method=String(b.method||'');
+        if(!['bkash','nagad','crypto_usdt'].includes(method))return {error:'Invalid payment method.'};
+        if(method==='crypto_usdt'){
+          const w=String(b.wallet_address||'').trim();
+          if(w.length<20||w.length>120)return {error:'Enter a valid USDT TRC20 wallet address.'};
+          return {rec:{method,wallet_address:w,account_number:null,account_type:null}};
+        }
+        const digits=String(b.account_number||'').replace(/\D/g,'');
+        if(digits.length<10||digits.length>14)return {error:'Enter a valid '+(method==='bkash'?'bKash':'Nagad')+' number (10–14 digits).'};
+        if(!['agent','personal'].includes(b.account_type))return {error:'Choose Agent Number or Personal Number.'};
+        return {rec:{method,account_number:digits,account_type:b.account_type,wallet_address:null}};
+      };
+      if(path==='me/payment-methods'&&method==='GET'){
+        return json(await db(env,`payment_methods?partner_id=eq.${s.id}&select=*&order=created_at.asc`));
+      }
+      if(path==='me/payment-methods'&&method==='POST'){
+        let b=await body(request),v=validatePaymentMethod(b);
+        if(v.error)return fail(v.error,400);
+        let existing=await db(env,`payment_methods?partner_id=eq.${s.id}&select=id`);
+        if(existing.length>=5)return fail('You can save up to 5 payment methods.',400);
+        const [out]=await db(env,'payment_methods',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({partner_id:s.id,...v.rec})});
+        return json(out,201);
+      }
+      if(path.startsWith('me/payment-methods/')&&(method==='PATCH'||method==='DELETE')){
+        const id=path.split('/')[2];
+        let [row]=await db(env,`payment_methods?id=eq.${id}&partner_id=eq.${s.id}&select=*`);
+        if(!row)return fail('Payment method not found.',404);
+        if(method==='DELETE'){await db(env,`payment_methods?id=eq.${id}`,{method:'DELETE'});return json({ok:true})}
+        let b=await body(request),v=validatePaymentMethod({...row,...b});
+        if(v.error)return fail(v.error,400);
+        const [out]=await db(env,`payment_methods?id=eq.${id}`,{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify({...v.rec,updated_at:new Date().toISOString()})});
+        return json(out);
+      }
       if(path==='me/overview'&&method==='GET'){
         let [allocs,pays,projects,allAllocs,allPays]=await Promise.all([
           db(env,`allocations?partner_id=eq.${s.id}&select=*&order=created_at.desc`),
@@ -191,15 +225,23 @@ export async function onRequest(context){
         let code=null;
         for(let i2=0;i2<15;i2++){let c='C'+String(crypto.getRandomValues(new Uint32Array(1))[0]%90000+10000);let used=await db(env,`contributions?code=eq.${c}&select=id`);if(!used.length){code=c;break}}
         if(!code)throw Error('Could not allocate a contribution code. Please retry.');
-        const saved=[];
-        for(let i2=0;i2<files.length;i2++){
-          const file=files[i2];
-          const key=`ios/proof/${s.id}/${id}/${i2+1}-${String(file.name||'proof').replace(/[^\w.\- ]+/g,'_').slice(0,120)}`;
-          await bucket.put(key,await file.arrayBuffer(),{httpMetadata:{contentType:file.type||'application/octet-stream'}});
-          const [row]=await db(env,'contribution_files',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({contribution_id:id,partner_id:s.id,file_name:String(file.name||'proof').slice(0,200),file_type:file.type||null,file_size:file.size,r2_key:key})});
-          saved.push(row);
-        }
+        // Parent row FIRST — contribution_files has a foreign key to contributions.
         const [out]=await db(env,'contributions',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({id,code,partner_id:s.id,project_id:projectId,allocation_id:alloc.id,acquired,note:note||null})});
+        const saved=[];
+        try{
+          for(let i2=0;i2<files.length;i2++){
+            const file=files[i2];
+            const key=`ios/proof/${s.id}/${id}/${i2+1}-${String(file.name||'proof').replace(/[^\w.\- ]+/g,'_').slice(0,120)}`;
+            await bucket.put(key,await file.arrayBuffer(),{httpMetadata:{contentType:file.type||'application/octet-stream'}});
+            const [row]=await db(env,'contribution_files',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({contribution_id:id,partner_id:s.id,file_name:String(file.name||'proof').slice(0,200),file_type:file.type||null,file_size:file.size,r2_key:key})});
+            saved.push(row);
+          }
+        }catch(e){
+          // Roll back so no orphan files/rows remain.
+          for(const f of saved){try{await (env.VAULTIUM||env.IOS_PROOF).delete(f.r2_key)}catch{}}
+          try{await db(env,`contributions?id=eq.${id}`,{method:'DELETE'})}catch{}
+          return fail('Could not save the proof files ('+(e.message||'storage error')+'). Please retry.',500);
+        }
         return json({...out,files:saved},201);
       }
       if(path==='helpdesk'&&method==='GET'){
