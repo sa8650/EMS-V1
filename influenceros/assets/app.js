@@ -1,4 +1,4 @@
-/* InfluencerOS — Partner & Influencer Management Platform. Powered by DoxTox. */
+/* InfluencerOS — Agent & Influencer Management Platform. Powered by DoxTox. */
 const $=s=>document.querySelector(s), app=$('#app');
 let state=JSON.parse(localStorage.getItem('ios.session')||'null');
 
@@ -24,6 +24,25 @@ const initials=n=>String(n||'?').trim().split(/\s+/).map(w=>w[0]).filter(Boolean
 const pct=(a,b)=>b>0?Math.min(999,Math.round(a/b*100)):0;
 const fmtDate=d=>String(d||'').slice(0,10);
 const fmtDT=d=>{const x=new Date(d);return isNaN(x)?String(d||''):x.toLocaleString(undefined,{year:'numeric',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})};
+const fmtSize=b=>{const n=Number(b)||0;return n>=1048576?(n/1048576).toFixed(1)+' MB':n>=1024?Math.round(n/1024)+' KB':n+' B'};
+const openFile=async(id,name)=>{
+  try{
+    const r=await fetch('/api/ios/files/'+id,{headers:{...(state?.token?{authorization:'Bearer '+state.token}:{})}});
+    if(!r.ok){const x=await r.json().catch(()=>({}));throw Error(x.error||'Could not open file')}
+    const blob=await r.blob();const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');a.href=url;a.target='_blank';a.download=name||'file';a.rel='noopener';
+    document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);
+  }catch(e){toast(e.message)}
+};
+function filesCell(files){
+  if(!files||!files.length)return '—';
+  return `<button class="btn small" data-files='${esc(JSON.stringify(files.map(f=>({id:f.id,n:f.file_name,s:f.file_size}))))}'>📁 ${files.length}</button>`;
+}
+function filesModal(files){
+  modal(`<h2>Proof files (${files.length})</h2><p>Click a file to open it in a new tab.</p>
+  ${files.map(f=>`<div class="target-row"><b style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(f.n)}</b><span>${fmtSize(f.s)}</span><span></span><button class="btn small" data-open="${f.id}" data-name="${esc(f.n)}">Open</button></div>`).join('')}
+  <div class="modal-actions"><button class="btn" data-close>Close</button></div>`).querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>openFile(b.dataset.open,b.dataset.name));
+}
 function toast(m){let e=$('#toast');e.textContent=m;e.classList.add('show');clearTimeout(e._t);e._t=setTimeout(()=>e.classList.remove('show'),3200)}
 
 const TYPE_LABELS={youtuber:'YouTuber',facebook:'Facebook',tiktoker:'TikToker',instagram:'Instagram',marketing_agent:'Marketing Agent',agency:'Agency'};
@@ -61,15 +80,15 @@ function landing(){
 
   <section class="hero">
     <div>
-      <span class="pill blue">Partner &amp; Influencer Management</span>
-      <h1>Run every partner, project and payout in <span>one place</span></h1>
+      <span class="pill blue">Agent &amp; Influencer Management</span>
+      <h1>Run every agent, project and payout in <span>one place</span></h1>
       <p class="lead">InfluencerOS brings your marketing agents, YouTubers, TikTokers and agencies together — allocate project targets, track acquired users, calculate commissions and pay partners with full balance control.</p>
       <div class="cta">
         <button class="btn dark big" id="heroLogin">Login to workspace</button>
         <a class="btn big" href="#features">See features</a>
       </div>
       <div class="stats">
-        <div><b>Partners</b><span>Agents &amp; creators</span></div>
+        <div><b>Agents</b><span>Agents &amp; creators</span></div>
         <div><b>Projects</b><span>Targets &amp; budgets</span></div>
         <div><b>Allocations</b><span>Per-partner goals</span></div>
         <div><b>Payments</b><span>Balance-safe payouts</span></div>
@@ -88,21 +107,21 @@ function landing(){
 
   <section class="land-section" id="features">
     <h2>Everything the workflow needs</h2>
-    <p class="sub">A connected data structure — Partner → Allocation → Project → Payment. Nothing is entered twice.</p>
+    <p class="sub">A connected data structure — Agent → Allocation → Project → Payment. Nothing is entered twice.</p>
     <div class="feat-grid">
-      <div class="feat"><div class="fi">◉</div><h3>Partners</h3><p>Agents, YouTubers, TikTokers, Facebook and Instagram creators and agencies — with 4-digit Partner IDs, social accounts and login access control.</p></div>
+      <div class="feat"><div class="fi">◉</div><h3>Agents</h3><p>Agents, YouTubers, TikTokers, Facebook and Instagram creators and agencies — with 4-digit Agent IDs, social accounts and login access control.</p></div>
       <div class="feat"><div class="fi">◆</div><h3>Projects</h3><p>Set a budget and goal. Target users, acquired users and used budget are calculated automatically from allocations.</p></div>
-      <div class="feat"><div class="fi">◌</div><h3>Allocations</h3><p>Assign per-partner targets and commissions. Only partners with status “Agree” can be allocated to a project.</p></div>
+      <div class="feat"><div class="fi">◌</div><h3>Allocations</h3><p>Assign per-partner targets and commissions. Only agents with status “Agree” can be allocated to a project.</p></div>
       <div class="feat"><div class="fi">$</div><h3>Payments</h3><p>Balance-safe payouts — a payment can never exceed the partner’s available balance. Paid totals update instantly.</p></div>
       <div class="feat"><div class="fi">◫</div><h3>Performance</h3><p>Achievement % and ranking are computed from acquired vs assigned users across every project.</p></div>
-      <div class="feat"><div class="fi">◎</div><h3>Partner portal</h3><p>Partners log in with Partner ID or email and see only their own projects, payments and performance.</p></div>
+      <div class="feat"><div class="fi">◎</div><h3>Agent portal</h3><p>Agents log in with Agent ID or email and see only their own projects, payments and performance.</p></div>
     </div>
   </section>
 
   <section class="land-section" id="workflow" style="padding-top:10px">
     <h2>From partner to payout</h2>
     <p class="sub">The system keeps financial and performance figures in sync automatically.</p>
-    <div class="card"><div class="target-row"><b>1 · Add partner</b><span>4-digit Partner ID generated</span><span>Social accounts saved</span><span class="right">Login ready</span></div>
+    <div class="card"><div class="target-row"><b>1 · Add agent</b><span>4-digit Agent ID generated</span><span>Social accounts saved</span><span class="right">Login ready</span></div>
     <div class="target-row"><b>2 · Create project</b><span>Set budget</span><span>Define the goal</span><span class="right">Activate</span></div>
     <div class="target-row"><b>3 · Allocate</b><span>Assign target users</span><span>Set commission</span><span class="right">Track progress</span></div>
     <div class="target-row"><b>4 · Pay</b><span>Available balance shown</span><span>Amount validated</span><span class="right">Mark as paid</span></div></div>
@@ -110,15 +129,15 @@ function landing(){
 
   <section class="land-section" id="roles" style="padding-top:10px">
     <h2>Two roles, one platform</h2>
-    <p class="sub">Administrators run the workspace. Partners get their own restricted dashboard.</p>
+    <p class="sub">Administrators run the workspace. Agents get their own restricted dashboard.</p>
     <div class="two">
       <div class="card"><div class="fi" style="width:38px;height:38px;border-radius:9px;background:#f0f0f0;display:grid;place-items:center;font-size:18px;margin-bottom:12px">▦</div><h3 style="margin:0 0 8px;font-size:15px">Admin dashboard</h3><p style="margin:0;color:#777;font-size:12px;line-height:1.6">Overview KPIs, partner directory, project cards, allocation table, payment processing with balance validation and partner performance ranking.</p></div>
-      <div class="card"><div class="fi" style="width:38px;height:38px;border-radius:9px;background:#f0f0f0;display:grid;place-items:center;font-size:18px;margin-bottom:12px">◎</div><h3 style="margin:0 0 8px;font-size:15px">Partner portal</h3><p style="margin:0;color:#777;font-size:12px;line-height:1.6">Profile with password self-service, allocated projects with progress, earnings KPIs, own payment history and personal performance with rank.</p></div>
+      <div class="card"><div class="fi" style="width:38px;height:38px;border-radius:9px;background:#f0f0f0;display:grid;place-items:center;font-size:18px;margin-bottom:12px">◎</div><h3 style="margin:0 0 8px;font-size:15px">Agent portal</h3><p style="margin:0;color:#777;font-size:12px;line-height:1.6">Profile with password self-service, allocated projects with progress, earnings KPIs, own payment history and personal performance with rank.</p></div>
     </div>
   </section>
 
   <footer class="land-foot"><div class="in">
-    <div>© ${new Date().getFullYear()} <b>InfluencerOS</b> — Partner &amp; Influencer Management</div>
+    <div>© ${new Date().getFullYear()} <b>InfluencerOS</b> — Agent &amp; Influencer Management</div>
     <div class="powered">powered by <b>DoxTox</b></div>
   </div></footer>`;
 
@@ -133,9 +152,9 @@ async function loginModal(){
     <p>Choose how you want to sign in.</p>
     <div style="display:grid;gap:10px">
       <button class="btn dark" id="mAdmin" style="padding:16px">▦ &nbsp;Admin login</button>
-      <button class="btn" id="mAgent" style="padding:16px">◎ &nbsp;Agent / Partner login</button>
+      <button class="btn" id="mAgent" style="padding:16px">◎ &nbsp;Agent login</button>
     </div>
-    <p class="form-note" style="margin-top:14px">Partners can sign in with their 4-digit Partner ID or registered email.</p>`);
+    <p class="form-note" style="margin-top:14px">Agents can sign in with their 4-digit Agent ID or registered email.</p>`);
   ov.querySelector('#mAdmin').onclick=()=>{ov.remove();adminLoginModal()};
   ov.querySelector('#mAgent').onclick=()=>{ov.remove();agentLoginModal()};
 }
@@ -160,9 +179,9 @@ async function adminLoginModal(){
 }
 function agentLoginModal(){
   const ov=modal(`
-    <h2>Agent / Partner login</h2>
-    <p>Use your 4-digit Partner ID or registered email address.</p>
-    <div class="field"><label>Partner ID or email</label><input id="pId" placeholder="4827 or you@email.com"></div>
+    <h2>Agent login</h2>
+    <p>Use your 4-digit Agent ID or registered email address.</p>
+    <div class="field"><label>Agent ID or email</label><input id="pId" placeholder="4827 or you@email.com"></div>
     <div class="field"><label>Password</label><input id="pPass" type="password" placeholder="Your password"></div>
     <div class="modal-actions"><button class="btn" data-close>Cancel</button><button class="btn dark" id="pGo">Sign in</button></div>`);
   ov.querySelector('#pGo').onclick=async()=>{
@@ -177,7 +196,7 @@ function agentLoginModal(){
 let aView='dashboard';
 function adminApp(){
   document.title='InfluencerOS — Admin';
-  const nav=[['dashboard','▦','Dashboard'],['partners','◉','Partners'],['projects','◆','Projects'],['contribute','⇧','Contribute'],['allocations','◌','Allocations'],['payments','$','Payments'],['performance','◫','Performance']];
+  const nav=[['dashboard','▦','Dashboard'],['partners','◉','Agents'],['projects','◆','Projects'],['contribute','⇧','Contribute'],['allocations','◌','Allocations'],['payments','$','Payments'],['performance','◫','Performance'],['vaultium','▣','Vaultium'],['helpdesk','✉','HelpDesk <span class="navbadge" id="hdBadge" style="display:none"></span>']];
   app.innerHTML=`<div class="app">
     <aside class="sidebar">
       <div class="logo">Influence<span>OS</span><small>powered by DoxTox</small></div>
@@ -191,15 +210,19 @@ function adminApp(){
   </div>`;
   document.querySelectorAll('.nav button[data-v]').forEach(b=>b.onclick=()=>{aView=b.dataset.v;document.querySelectorAll('.nav button').forEach(x=>x.classList.toggle('active',x===b));renderAdmin()});
   $('#outBtn').onclick=logout;
+  api('helpdesk').then(d=>updateHdBadge(d.totalUnread||0)).catch(()=>{});
   renderAdmin();
 }
 async function renderAdmin(){
   const main=$('#main');if(!main)return;
+  clearInterval(phdPoll);
   try{
     if(aView==='dashboard')return await aDashboard(main);
     if(aView==='partners')return await aPartners(main);
     if(aView==='projects')return await aProjects(main);
     if(aView==='contribute')return await aContribute(main);
+    if(aView==='vaultium')return await aVaultium(main);
+    if(aView==='helpdesk')return await aHelpdesk(main);
     if(aView==='allocations')return await aAllocations(main);
     if(aView==='payments')return await aPayments(main);
     if(aView==='performance')return await aPerformance(main);
@@ -220,7 +243,7 @@ function renderDashboard(main,d){
   <div class="top"><div class="title"><h1>Good ${new Date().getHours()<12?'morning':new Date().getHours()<18?'afternoon':'evening'}, ${esc(state.user.name)}</h1><p>Marketing partner operations, project contribution and payouts.</p></div>
   <div class="actions"><button class="btn" id="seedBtn">Load demo data</button></div></div>
   <div class="kpi-grid">
-    ${kpi('Total Partners',k.totalPartners)}
+    ${kpi('Total Agents',k.totalPartners)}
     ${kpi('Active Projects',k.activeProjects)}
     ${kpi('Total Allocated Targets',k.assignedTarget.toLocaleString())}
     ${kpi('Total Acquired Users',k.acquiredUsers.toLocaleString())}
@@ -233,8 +256,8 @@ function renderDashboard(main,d){
   </div>
   <div class="section two">
     <div class="card table-card">
-      <div class="table-top"><div><b>Project contribution</b><div style="font-size:11px;color:#999;margin-top:3px">Partner targets and acquired users</div></div></div>
-      <div style="overflow:auto"><table class="table"><thead><tr><th>Partner</th><th>Project</th><th>Target</th><th>Acquired</th><th>Progress</th><th>Commission</th><th>Status</th></tr></thead>
+      <div class="table-top"><div><b>Project contribution</b><div style="font-size:11px;color:#999;margin-top:3px">Agent targets and acquired users</div></div></div>
+      <div style="overflow:auto"><table class="table"><thead><tr><th>Agent</th><th>Project</th><th>Target</th><th>Acquired</th><th>Progress</th><th>Commission</th><th>Status</th></tr></thead>
       <tbody>${d.contributions.length?d.contributions.map(c=>`<tr>
         <td><div class="partner"><div class="avatar">${esc(initials(c.partner_name))}</div><div><b>${esc(c.partner_name)}</b><small>#${esc(c.partner_code)}</small></div></div></td>
         <td>${esc(c.project_name)}</td><td>${num(c.assigned_target).toLocaleString()}</td><td><b>${num(c.acquired_users).toLocaleString()}</b></td>
@@ -251,7 +274,7 @@ function renderDashboard(main,d){
   warm();
   $('#seedBtn').onclick=async()=>{
     if(!confirm('Load demo data? This will REPLACE all existing partners, projects, allocations and payments in the InfluencerOS database.'))return;
-    try{const r=await mutate('demo-seed',{method:'POST'});toast(`Demo data loaded — ${r.partners} partners, ${r.projects} projects. Partner password: ${r.partnerPassword}`);renderAdmin()}catch(e){toast(e.message)}
+    try{const r=await mutate('demo-seed',{method:'POST'});toast(`Demo data loaded — ${r.partners} agents, ${r.projects} projects. Agent password: ${r.partnerPassword}`);renderAdmin()}catch(e){toast(e.message)}
   };
 }
 
@@ -265,15 +288,15 @@ async function aPartners(main){
 function renderPartnersView(main,partners){
   const list=partners.filter(p=>(!pFilter.type||p.type===pFilter.type)&&(!pFilter.status||p.status===pFilter.status)&&(!pFilter.q||(p.name+' '+p.email+' '+p.partner_code).toLowerCase().includes(pFilter.q.toLowerCase())));
   main.innerHTML=`
-  <div class="top"><div class="title"><h1>Partners</h1><p>Manage marketing agents, YouTubers, TikTokers and agencies.</p></div>
-  <div class="actions"><button class="btn dark" id="addPartner">+ Add partner</button></div></div>
-  <div class="section-box"><div class="toolbar"><h2>Partner directory</h2>
+  <div class="top"><div class="title"><h1>Agents</h1><p>Manage marketing agents, YouTubers, TikTokers and agencies.</p></div>
+  <div class="actions"><button class="btn dark" id="addPartner">+ Add agent</button></div></div>
+  <div class="section-box"><div class="toolbar"><h2>Agent directory</h2>
     <div class="filters">
       <input id="pq" placeholder="Search name, email or ID…" value="${esc(pFilter.q)}">
       <select id="ptype"><option value="">All types</option>${Object.entries(TYPE_LABELS).map(([k,v])=>`<option value="${k}" ${pFilter.type===k?'selected':''}>${v}</option>`).join('')}</select>
       <select id="pstatus"><option value="">All status</option>${Object.entries(PARTNER_STATUS).map(([k,v])=>`<option value="${k}" ${pFilter.status===k?'selected':''}>${v[0]}</option>`).join('')}</select>
     </div></div>
-  <div style="overflow:auto"><table class="view-table"><thead><tr><th>ID</th><th>Partner</th><th>Type</th><th>Projects</th><th>Total Users</th><th>Total Income</th><th>Paid</th><th>Balance</th><th>Note</th><th>Status</th><th></th></tr></thead>
+  <div style="overflow:auto"><table class="view-table"><thead><tr><th>ID</th><th>Agent</th><th>Type</th><th>Projects</th><th>Total Users</th><th>Total Income</th><th>Paid</th><th>Balance</th><th>Note</th><th>Status</th><th></th></tr></thead>
   <tbody>${list.length?list.map(p=>`<tr>
     <td><b>${esc(p.partner_code)}</b></td>
     <td><div class="partner"><div class="avatar">${esc(initials(p.name))}</div><div><b>${esc(p.name)}</b><small>${esc(p.email)}</small></div></div></td>
@@ -289,20 +312,20 @@ function renderPartnersView(main,partners){
   $('#pstatus').onchange=e=>{pFilter.status=e.target.value;renderPartnersView(main,partners)};
   main.querySelectorAll('[data-view]').forEach(b=>b.onclick=()=>partnerViewModal(partners.find(x=>x.id===b.dataset.view)));
   main.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>{const p=partners.find(x=>x.id===b.dataset.edit);partnerModal(p,partners)});
-  main.querySelectorAll('[data-del]').forEach(b=>b.onclick=async()=>{if(!confirm('Delete this partner and all their allocations/payments?'))return;try{await mutate('partners/'+b.dataset.del,{method:'DELETE'});toast('Partner deleted.');renderAdmin()}catch(e){toast(e.message)}});
+  main.querySelectorAll('[data-del]').forEach(b=>b.onclick=async()=>{if(!confirm('Delete this agent and all their allocations/payments?'))return;try{await mutate('partners/'+b.dataset.del,{method:'DELETE'});toast('Agent deleted.');renderAdmin()}catch(e){toast(e.message)}});
 }
 function partnerModal(p,all){
   const accounts=(p?.accounts&&p.accounts.length?p.accounts:[{label:'',url:''}]);
   const ov=modal(`
-    <h2>${p?'Edit partner':'Add partner'}</h2>
-    <p>${p?'Partner #'+esc(p.partner_code):'A unique 4-digit Partner ID will be generated automatically.'}</p>
+    <h2>${p?'Edit agent':'Add agent'}</h2>
+    <p>${p?'Partner #'+esc(p.partner_code):'A unique 4-digit Agent ID will be generated automatically.'}</p>
     <div class="field-row">
       <div class="field"><label>Name</label><input id="fName" value="${esc(p?.name||'')}" placeholder="Full name / agency"></div>
       <div class="field"><label>Email</label><input id="fEmail" type="email" value="${esc(p?.email||'')}" placeholder="partner@email.com"></div>
     </div>
     <div class="field-row">
       <div class="field"><label>Phone number</label><input id="fPhone" value="${esc(p?.phone||'')}" placeholder="+880…"></div>
-      <div class="field"><label>Partner type</label><select id="fType">${Object.entries(TYPE_LABELS).map(([k,v])=>`<option value="${k}" ${p?.type===k?'selected':''}>${v}</option>`).join('')}</select></div>
+      <div class="field"><label>Agent type</label><select id="fType">${Object.entries(TYPE_LABELS).map(([k,v])=>`<option value="${k}" ${p?.type===k?'selected':''}>${v}</option>`).join('')}</select></div>
     </div>
     <div class="field"><label>Social / account information <small>(up to 5)</small></label><div id="acctBox"></div>
       <button class="btn small" id="addAcct" type="button">+ Add URL</button></div>
@@ -314,7 +337,7 @@ function partnerModal(p,all){
     <div class="field"><label>Note</label><textarea id="fNote" rows="2" placeholder="Optional note…">${esc(p?.note||'')}</textarea></div>
     <div class="field"><label>Financial summary <small>(auto-calculated — read only)</small></label>
       <div class="kv"><span>Projects</span><b>${p?.projects??0}</b><span>Total acquired users</span><b>${num(p?.acquired_users).toLocaleString()}</b><span>Total income</span><b>${money(p?.income)}</b><span>Paid</span><b>${money(p?.paid)}</b><span>Remaining balance</span><b>${money(p?.balance)}</b></div></div>
-    <div class="modal-actions"><button class="btn" data-close>Cancel</button><button class="btn dark" id="fSave">${p?'Save changes':'Add partner'}</button></div>`);
+    <div class="modal-actions"><button class="btn" data-close>Cancel</button><button class="btn dark" id="fSave">${p?'Save changes':'Add agent'}</button></div>`);
   const box=ov.querySelector('#acctBox');
   const addRow=(a={label:'',url:''})=>{
     if(box.children.length>=5){toast('Maximum 5 account URLs.');return}
@@ -330,8 +353,8 @@ function partnerModal(p,all){
       type:ov.querySelector('#fType').value,accounts:accountsList,password:ov.querySelector('#fPass').value||undefined,
       login_access:ov.querySelector('#fAccess').value==='yes',status:ov.querySelector('#fStatus').value,note:ov.querySelector('#fNote').value};
     try{
-      if(p){await mutate('partners/'+p.id,{method:'PATCH',body:JSON.stringify(payload)});toast('Partner updated.')}
-      else{const r=await mutate('partners',{method:'POST',body:JSON.stringify(payload)});ov.remove();modal(`<h2>Partner created</h2><p>Share these credentials with the partner.</p><div class="kv"><span>Partner ID</span><b style="font-size:20px">${esc(r.partner_code)}</b><span>Email</span><b>${esc(r.email)}</b><span>Login</span><b>Partner ID or email + password</b></div><div class="modal-actions"><button class="btn dark" data-close>Done</button></div>`);toast('Partner added — ID '+r.partner_code);renderAdmin();return}
+      if(p){await mutate('partners/'+p.id,{method:'PATCH',body:JSON.stringify(payload)});toast('Agent updated.')}
+      else{const r=await mutate('partners',{method:'POST',body:JSON.stringify(payload)});ov.remove();modal(`<h2>Agent created</h2><p>Share these credentials with the agent.</p><div class="kv"><span>Agent ID</span><b style="font-size:20px">${esc(r.partner_code)}</b><span>Email</span><b>${esc(r.email)}</b><span>Login</span><b>Agent ID or email + password</b></div><div class="modal-actions"><button class="btn dark" data-close>Done</button></div>`);toast('Agent added — ID '+r.partner_code);renderAdmin();return}
       ov.remove();renderAdmin();
     }catch(e){toast(e.message)}
   };
@@ -397,10 +420,10 @@ function renderAllocationsView(main,allocs,projects,partners){
   const list=allocs.filter(a=>!aFilterQ||(a.partner_name+' '+a.project_name).toLowerCase().includes(aFilterQ.toLowerCase()));
   const agree=partners.filter(p=>p.status==='agree');
   main.innerHTML=`
-  <div class="top"><div class="title"><h1>Allocations</h1><p>Assign project targets to partners and track progress.</p></div>
+  <div class="top"><div class="title"><h1>Allocations</h1><p>Assign project targets to agents and track progress.</p></div>
   <div class="actions"><button class="btn dark" id="addAlloc">+ Add allocation</button></div></div>
   <div class="section-box"><div class="toolbar"><h2>Allocation table</h2><div class="filters"><input id="aq" placeholder="Search project or partner…" value="${esc(aFilterQ)}"></div></div>
-  <div style="overflow:auto"><table class="view-table"><thead><tr><th>Project</th><th>Partner</th><th>Assigned target</th><th>Users acquired</th><th>Commission</th><th>Progress</th><th>Status</th><th></th></tr></thead>
+  <div style="overflow:auto"><table class="view-table"><thead><tr><th>Project</th><th>Agent</th><th>Assigned target</th><th>Users acquired</th><th>Commission</th><th>Progress</th><th>Status</th><th></th></tr></thead>
   <tbody>${list.length?list.map(a=>`<tr>
     <td>${esc(a.project_name)}</td>
     <td><div class="partner"><div class="avatar">${esc(initials(a.partner_name))}</div><div><b>${esc(a.partner_name)}</b><small>#${esc(a.partner_code)}</small></div></div></td>
@@ -420,7 +443,7 @@ function allocationModal(a,projects,agreePartners,existing){
     <h2>${editable?'Edit allocation':'Add allocation'}</h2>
     <p>${editable?'Update targets, progress, commission or status.':'Link an agreeing partner to a project with a target and commission.'}</p>
     <div class="field"><label>Project</label><select id="lProject" ${editable?'disabled':''}><option value="">Select project…</option>${projects.map(p=>`<option value="${p.id}" ${a?.project_id===p.id?'selected':''}>${esc(p.name)}${p.status!=='active'?' (inactive)':''}</option>`).join('')}</select></div>
-    <div class="field"><label>Partner <small>${editable?'':'(only partners with status “Agree” are listed)'}</small></label><select id="lPartner" ${editable?'disabled':''}><option value="">Select partner…</option>${agreePartners.map(p=>`<option value="${p.id}" ${a?.partner_id===p.id?'selected':''}>${esc(p.name)} · #${esc(p.partner_code)}</option>`).join('')}</select></div>
+    <div class="field"><label>Agent <small>${editable?'':'(only agents with status “Agree” are listed)'}</small></label><select id="lPartner" ${editable?'disabled':''}><option value="">Select agent…</option>${agreePartners.map(p=>`<option value="${p.id}" ${a?.partner_id===p.id?'selected':''}>${esc(p.name)} · #${esc(p.partner_code)}</option>`).join('')}</select></div>
     <div class="field-row">
       <div class="field"><label>Assigned target (users)</label><input id="lTarget" type="number" min="0" value="${num(a?.assigned_target)}"></div>
       <div class="field"><label>Acquired users</label><input id="lAcquired" type="number" min="0" value="${num(a?.acquired_users)}"></div>
@@ -454,10 +477,10 @@ async function aPayments(main){
 function renderPaymentsView(main,payments,partners){
   const list=payments.filter(p=>!payFilterQ||(p.partner_name+' '+p.project_name+String(p.transaction_id||'')).toLowerCase().includes(payFilterQ.toLowerCase()));
   main.innerHTML=`
-  <div class="top"><div class="title"><h1>Payments</h1><p>Partner payouts with automatic available-balance validation.</p></div>
+  <div class="top"><div class="title"><h1>Payments</h1><p>Agent payouts with automatic available-balance validation.</p></div>
   <div class="actions"><button class="btn dark" id="addPay">+ Add payment</button></div></div>
   <div class="section-box"><div class="toolbar"><h2>Payment table</h2><div class="filters"><input id="payq" placeholder="Search partner, project or txn…" value="${esc(payFilterQ)}"></div></div>
-  <div style="overflow:auto"><table class="view-table"><thead><tr><th>Payment ID</th><th>Date</th><th>Partner</th><th>Project</th><th>Amount</th><th>Method</th><th>Transaction</th><th>Status</th><th></th></tr></thead>
+  <div style="overflow:auto"><table class="view-table"><thead><tr><th>Payment ID</th><th>Date</th><th>Agent</th><th>Project</th><th>Amount</th><th>Method</th><th>Transaction</th><th>Status</th><th></th></tr></thead>
   <tbody>${list.length?list.map(p=>`<tr>
     <td><b>${esc(String(p.id).slice(0,8).toUpperCase())}</b></td><td>${fmtDate(p.payment_date)}</td>
     <td><div class="partner"><div class="avatar">${esc(initials(p.partner_name))}</div><div><b>${esc(p.partner_name)}</b><small>#${esc(p.partner_code)}</small></div></div></td>
@@ -473,9 +496,9 @@ function renderPaymentsView(main,payments,partners){
 function paymentModal(pay,partners){
   const ov=modal(`
     <h2>Add payment</h2>
-    <p>The partner list shows only partners allocated to the selected project.</p>
+    <p>The agent list shows only agents allocated to the selected project.</p>
     <div class="field"><label>Select project</label><select id="yProject"><option value="">Select project…</option></select></div>
-    <div class="field"><label>Select partner</label><select id="yPartner" disabled><option value="">Select a project first…</option></select></div>
+    <div class="field"><label>Select agent</label><select id="yPartner" disabled><option value="">Select a project first…</option></select></div>
     <div class="field"><label>Available balance <small>(read only)</small></label><input id="yBalance" readonly value="—"></div>
     <div class="field-row">
       <div class="field"><label>Payment date</label><input id="yDate" type="date" value="${new Date().toISOString().slice(0,10)}"></div>
@@ -500,7 +523,7 @@ function paymentModal(pay,partners){
   projSel.onchange=()=>{
     const opts=allocations.filter(a=>a.project_id===projSel.value);
     partnerSel.disabled=!projSel.value;
-    partnerSel.innerHTML='<option value="">Select partner…</option>'+opts.map(a=>`<option value="${a.partner_id}">${esc(a.partner_name)} · #${esc(a.partner_code)}</option>`).join('');
+    partnerSel.innerHTML='<option value="">Select agent…</option>'+opts.map(a=>`<option value="${a.partner_id}">${esc(a.partner_name)} · #${esc(a.partner_code)}</option>`).join('');
     bal.value='—';
   };
   partnerSel.onchange=()=>{
@@ -510,7 +533,7 @@ function paymentModal(pay,partners){
   ov.querySelector('#ySave').onclick=async()=>{
     const amount=num(ov.querySelector('#yAmount').value);
     const p=partners.find(x=>x.id===partnerSel.value);
-    if(!projSel.value||!partnerSel.value)return toast('Select a project and partner.');
+    if(!projSel.value||!partnerSel.value)return toast('Select a project and agent.');
     if(p&&amount>p.balance)return toast(`Payment amount cannot exceed available balance (${money(p.balance)}).`);
     try{
       await mutate('payments',{method:'POST',body:JSON.stringify({project_id:projSel.value,partner_id:partnerSel.value,payment_date:ov.querySelector('#yDate').value,amount,method:ov.querySelector('#yMethod').value,status:ov.querySelector('#yStatus').value,transaction_id:ov.querySelector('#yTxn').value})});
@@ -527,26 +550,27 @@ async function aContribute(main){
 }
 function renderAContribute(main,rows){
   const count=k=>rows.filter(r=>r.status===k).length;
-  const proofLink=c=>c.proof_url?`<a href="/api/ios/contributions/${c.id}/proof" target="_blank" rel="noopener"><button class="btn small">View</button></a>`:'—';
   main.innerHTML=`
-  <div class="top"><div class="title"><h1>Contribute</h1><p>Partner contribution requests — accept to add acquired users automatically.</p></div></div>
+  <div class="top"><div class="title"><h1>Contribute</h1><p>Agent contribution requests — accept to add acquired users automatically.</p></div></div>
   <div class="kpi-grid">
     <div class="card stat"><div><div class="label">Pending</div><div class="value">${count('pending')}</div></div></div>
     <div class="card stat"><div><div class="label">Accepted</div><div class="value">${count('accepted')}</div></div></div>
     <div class="card stat"><div><div class="label">Rejected</div><div class="value">${count('rejected')}</div></div></div>
   </div>
-  <div class="section-box"><div class="toolbar"><h2>All contribution requests</h2><span class="muted">Every partner · newest first</span></div>
-  <div style="overflow:auto"><table class="view-table"><thead><tr><th>Date &amp; time</th><th>Partner</th><th>Project</th><th>Acquired</th><th>Proof</th><th>Note</th><th>Status</th><th>Review</th><th></th></tr></thead>
+  <div class="section-box"><div class="toolbar"><h2>All contribution requests</h2><span class="muted">Every agent · newest first</span></div>
+  <div style="overflow:auto"><table class="view-table"><thead><tr><th>ID</th><th>Date &amp; time</th><th>Agent</th><th>Project</th><th>Acquired</th><th>Proof</th><th>Note</th><th>Status</th><th>Review</th><th></th></tr></thead>
   <tbody>${rows.length?rows.map(c=>`<tr>
+    <td><b>${esc(c.code||String(c.id).slice(0,6))}</b></td>
     <td>${fmtDT(c.created_at)}</td>
     <td><div class="partner"><div class="avatar">${esc(initials(c.partner_name))}</div><div><b>${esc(c.partner_name)}</b><small>#${esc(c.partner_code)}</small></div></div></td>
     <td>${esc(c.project_name)}</td><td><b>+${num(c.acquired).toLocaleString()}</b></td>
-    <td>${proofLink(c)}</td>
+    <td>${filesCell(c.files)}</td>
     <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(c.note||'')}">${esc(c.note||'—')}</td>
     <td>${pill(CONTRIB_STATUS,c.status)}</td>
     <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(c.review_note||'')}">${c.reviewed_at?esc(c.review_note||'—'):'—'}</td>
     <td class="actions-cell">${c.status==='pending'?`<button class="btn small" data-accept="${c.id}" data-n="${num(c.acquired)}">Accept</button><button class="btn small danger" data-reject="${c.id}">Reject</button>`:''}</td>
   </tr>`).join(''):'<tr><td colspan="9" class="empty">No contribution requests yet.</td></tr>'}</tbody></table></div></div>`;
+  main.querySelectorAll('[data-files]').forEach(b=>b.onclick=()=>filesModal(JSON.parse(b.dataset.files)));
   main.querySelectorAll('[data-accept]').forEach(b=>b.onclick=async()=>{
     if(!confirm(`Accept this contribution? ${b.dataset.n} users will be added to the allocation's Users acquired automatically.`))return;
     try{await mutate('contributions/'+b.dataset.accept,{method:'PATCH',body:JSON.stringify({action:'accept'})});toast('Contribution accepted — acquired users updated.');renderAdmin()}catch(e){toast(e.message)}
@@ -559,14 +583,14 @@ function renderAContribute(main,rows){
 
 /* ---------- ADMIN: PARTNER VIEW MODAL (details + edit history) ---------- */
 function partnerViewModal(p){
-  const ov=modal(`<h2>${esc(p.name)}</h2><p>Partner #${esc(p.partner_code)} — profile details &amp; edit history</p>
+  const ov=modal(`<h2>${esc(p.name)}</h2><p>Agent #${esc(p.partner_code)} — profile details &amp; edit history</p>
     <div id="pvBody"><p class="muted">Loading…</p></div>
     <div class="modal-actions"><button class="btn" data-close>Close</button></div>`);
   api(`partners/${p.id}/logs`).then(d=>{
     const me=d.partner,accts=me.accounts||[];
     ov.querySelector('#pvBody').innerHTML=`
     <div class="kv">
-      <span>Partner ID</span><b>#${esc(me.partner_code)}</b>
+      <span>Agent ID</span><b>#${esc(me.partner_code)}</b>
       <span>Name</span><b>${esc(me.name)}</b>
       <span>Email</span><b>${esc(me.email)}</b>
       <span>Phone</span><b>${esc(me.phone||'—')}</b>
@@ -592,7 +616,98 @@ function partnerViewModal(p){
   }).catch(e=>{ov.querySelector('#pvBody').innerHTML=`<div class="empty">${esc(e.message)}</div>`});
 }
 
+/* ---------- ADMIN: VAULTIUM (contribution files) ---------- */
+async function aVaultium(main){
+  if(viewCache.vaultium)renderVaultium(main,viewCache.vaultium);else main.innerHTML='<p class="muted">Loading…</p>';
+  const rows=await api('vaultium');viewCache.vaultium=rows;
+  if(!typing(main))renderVaultium(main,rows);
+}
+function renderVaultium(main,rows){
+  const totalBytes=rows.reduce((a,f)=>a+num(f.file_size),0);
+  const month=new Date().toISOString().slice(0,7);
+  const thisMonth=rows.filter(f=>String(f.created_at||'').startsWith(month)).length;
+  main.innerHTML=`
+  <div class="top"><div class="title"><h1>Vaultium</h1><p>Every proof file from contribution requests — stored in the Vaultium R2 bucket.</p></div></div>
+  <div class="kpi-grid">
+    <div class="card stat"><div><div class="label">Total files</div><div class="value">${rows.length}</div></div></div>
+    <div class="card stat"><div><div class="label">Storage used</div><div class="value">${fmtSize(totalBytes)}</div></div></div>
+    <div class="card stat"><div><div class="label">Files this month</div><div class="value">${thisMonth}</div></div></div>
+  </div>
+  <div class="section-box"><div class="toolbar"><h2>All files</h2><span class="muted">Newest first</span></div>
+  <div style="overflow:auto"><table class="view-table"><thead><tr><th>File name</th><th>Date &amp; time</th><th>Size</th><th>Type</th><th>Contribution</th><th>Agent</th><th>Project</th><th></th></tr></thead>
+  <tbody>${rows.length?rows.map(f=>`<tr>
+    <td><b>${esc(f.file_name)}</b></td>
+    <td>${fmtDT(f.created_at)}</td>
+    <td>${fmtSize(f.file_size)}</td>
+    <td>${esc(f.file_type||'—')}</td>
+    <td><b>${esc(f.contribution_code||'—')}</b></td>
+    <td><div class="partner"><div class="avatar">${esc(initials(f.partner_name))}</div><div><b>${esc(f.partner_name)}</b><small>#${esc(f.partner_code)}</small></div></div></td>
+    <td>${esc(f.project_name)}</td>
+    <td class="actions-cell"><button class="btn small" data-vopen="${f.id}" data-vname="${esc(f.file_name)}">Open</button><button class="btn small danger" data-vdel="${f.id}">×</button></td>
+  </tr>`).join(''):'<tr><td colspan="8" class="empty">No files stored yet.</td></tr>'}</tbody></table></div></div>`;
+  main.querySelectorAll('[data-vopen]').forEach(b=>b.onclick=()=>openFile(b.dataset.vopen,b.dataset.vname));
+  main.querySelectorAll('[data-vdel]').forEach(b=>b.onclick=async()=>{
+    if(!confirm('Delete this file from Vaultium storage?'))return;
+    try{await mutate('files/'+b.dataset.vdel,{method:'DELETE'});toast('File deleted.');renderAdmin()}catch(e){toast(e.message)}
+  });
+}
+
+/* ---------- ADMIN: HELPDESK ---------- */
+let hdPoll=null;
+async function aHelpdesk(main){
+  main.innerHTML='<p class="muted">Loading…</p>';
+  const render=async()=>{
+    const d=await api('helpdesk');
+    if(aView!=='helpdesk')return;
+    updateHdBadge(d.totalUnread||0);
+    renderHelpdeskThreads(main,d.threads);
+  };
+  await render();
+  clearInterval(hdPoll);
+  hdPoll=setInterval(()=>{if(aView==='helpdesk')render().catch(()=>{})},12000);
+}
+function renderHelpdeskThreads(main,threads){
+  main.innerHTML=`
+  <div class="top"><div class="title"><h1>HelpDesk</h1><p>One continuous conversation with every agent.</p></div></div>
+  <div class="section-box">
+    ${threads.length?threads.map(t=>`<div class="row" style="cursor:pointer" data-thread="${t.partner_id}">
+      <div class="left"><div class="mini">${esc(initials(t.partner_name))}</div>
+        <div><b>${esc(t.partner_name)} <small style="color:#888">#${esc(t.partner_code)}</small></b>
+        <small>${esc((t.last||'').slice(0,80))} · ${fmtDT(t.last_at)} · ${t.total} message${t.total===1?'':'s'}</small></div></div>
+      <div>${t.unread?`<span class="pill red">${t.unread} new</span>`:'<span class="pill gray">Read</span>'}</div>
+    </div>`).join(''):'<div class="empty">No conversations yet. Agents can start one from their HelpDesk page.</div>'}
+  </div>`;
+  main.querySelectorAll('[data-thread]').forEach(r=>r.onclick=()=>helpdeskChatModal(r.dataset.thread));
+}
+function helpdeskChatModal(partnerId){
+  const ov=modal(`<h2 id="hcTitle">Conversation</h2><p>Messages are continuous and never cleared.</p>
+    <div class="chat" id="hcLog"><p class="muted">Loading…</p></div>
+    <div class="chatbar"><input id="hcInput" placeholder="Write a reply…"><button class="btn dark" id="hcSend">Send</button></div>`);
+  const log=ov.querySelector('#hcLog');
+  const paint=(partner,messages)=>{
+    ov.querySelector('#hcTitle').textContent='Conversation with '+partner.name;
+    log.innerHTML=messages.length?messages.map(m=>`<div class="msg ${m.sender_type==='admin'?'me':''}"><p>${esc(m.body)}</p><time>${fmtDT(m.created_at)} · ${m.sender_type==='admin'?'You':partner.name}</time></div>`).join(''):'<p class="muted">No messages yet — say hello.</p>';
+    log.scrollTop=log.scrollHeight;
+  };
+  const load=async()=>{const d=await api('helpdesk/'+partnerId);paint(d.partner,d.messages);return d};
+  load().catch(e=>log.innerHTML=`<div class="empty">${esc(e.message)}</div>`);
+  const send=async()=>{
+    const input=ov.querySelector('#hcInput'),text=input.value.trim();
+    if(!text)return;
+    try{input.value='';await mutate('helpdesk/'+partnerId,{method:'POST',body:JSON.stringify({body:text})});await load()}catch(e){toast(e.message)}
+  };
+  ov.querySelector('#hcSend').onclick=send;
+  ov.querySelector('#hcInput').onkeydown=e=>{if(e.key==='Enter')send()};
+}
+function updateHdBadge(n){
+  const b=$('#hdBadge');
+  if(!b)return;
+  b.textContent=n>9?'9+':n;
+  b.style.display=n?'inline-block':'none';
+}
+
 /* ---------- ADMIN: PERFORMANCE ---------- */
+
 async function aPerformance(main){
   if(viewCache.performance)renderPerformanceView(main,viewCache.performance);else main.innerHTML='<p class="muted">Loading…</p>';
   const rows=await api('performance');viewCache.performance=rows;
@@ -600,8 +715,8 @@ async function aPerformance(main){
 }
 function renderPerformanceView(main,rows){
   main.innerHTML=`
-  <div class="top"><div class="title"><h1>Performance</h1><p>Partner achievement against acquisition targets — ranked automatically.</p></div></div>
-  <div class="section-box"><div style="overflow:auto"><table class="view-table"><thead><tr><th>Rank</th><th>Partner</th><th>Projects</th><th>Assigned users</th><th>Acquired users</th><th>Achievement</th></tr></thead>
+  <div class="top"><div class="title"><h1>Performance</h1><p>Agent achievement against acquisition targets — ranked automatically.</p></div></div>
+  <div class="section-box"><div style="overflow:auto"><table class="view-table"><thead><tr><th>Rank</th><th>Agent</th><th>Projects</th><th>Assigned users</th><th>Acquired users</th><th>Achievement</th></tr></thead>
   <tbody>${rows.length?rows.map(r=>`<tr>
     <td><b>#${r.rank}</b></td>
     <td><div class="partner"><div class="avatar">${esc(initials(r.name))}</div><div><b>${esc(r.name)}</b><small>#${esc(r.partner_code)} · ${TYPE_LABELS[r.type]||r.type}</small></div></div></td>
@@ -619,11 +734,11 @@ function aSettings(main){
 /* ═══════════ PARTNER (AGENT) APP ═══════════ */
 let pView='profile';
 function partnerApp(){
-  document.title='InfluencerOS — Partner';
-  const nav=[['profile','◉','Profile'],['contribute','⇧','Contribute'],['projects','◆','Projects'],['payments','$','Payments'],['performance','◫','Performance']];
+  document.title='InfluencerOS — Agent';
+  const nav=[['profile','◉','Profile'],['contribute','⇧','Contribute'],['projects','◆','Projects'],['payments','$','Payments'],['performance','◫','Performance'],['helpdesk','✉','HelpDesk <span class="navbadge" id="hdBadge" style="display:none"></span>']];
   app.innerHTML=`<div class="app">
     <aside class="sidebar">
-      <div class="logo">Influence<span>OS</span><small>partner portal · DoxTox</small></div>
+      <div class="logo">Influence<span>OS</span><small>agent portal · DoxTox</small></div>
       <div class="nav-label">My workspace</div>
       <div class="nav">${nav.map(([k,i,l])=>`<button data-v="${k}" class="${k===pView?'active':''}"><span class="icon">${i}</span> ${l}</button>`).join('')}</div>
       <div class="sidebottom"><button id="outBtn">⏻ Logout</button></div>
@@ -632,13 +747,16 @@ function partnerApp(){
   </div>`;
   document.querySelectorAll('.nav button[data-v]').forEach(b=>b.onclick=()=>{pView=b.dataset.v;document.querySelectorAll('.nav button').forEach(x=>x.classList.toggle('active',x===b));renderPartner()});
   $('#outBtn').onclick=logout;
+  api('helpdesk').then(d=>updateHdBadge(d.unread||0)).catch(()=>{});
   renderPartner();
 }
 async function renderPartner(){
   const main=$('#main');if(!main)return;
   try{
     if(pView==='profile')return await pProfile(main);
+    clearInterval(hdPoll);
     if(pView==='contribute')return await pContribute(main);
+    if(pView==='helpdesk')return await pHelpdesk(main);
     if(pView==='projects')return await pOverview(main,'projects');
     if(pView==='payments')return await pOverview(main,'payments');
     if(pView==='performance')return await pOverview(main,'performance');
@@ -654,7 +772,7 @@ function renderPProfile(main,me){
   <div class="top"><div class="title"><h1>My profile</h1><p>Your partner account information.</p></div>
   <div class="actions"><button class="btn dark" id="editProfile">Edit profile</button></div></div>
   <div class="section-box">
-    <div class="detail-head"><div style="display:flex;gap:14px;align-items:center"><div class="avatar" style="width:52px;height:52px;font-size:16px">${esc(initials(me.name))}</div><div><h2>${esc(me.name)}</h2><p>Partner ID <b>#${esc(me.partner_code)}</b></p></div></div><span class="pill ${me.login_access?'green':'red'}">${me.login_access?'Login enabled':'Login disabled'}</span></div>
+    <div class="detail-head"><div style="display:flex;gap:14px;align-items:center"><div class="avatar" style="width:52px;height:52px;font-size:16px">${esc(initials(me.name))}</div><div><h2>${esc(me.name)}</h2><p>Agent ID <b>#${esc(me.partner_code)}</b></p></div></div><span class="pill ${me.login_access?'green':'red'}">${me.login_access?'Login enabled':'Login disabled'}</span></div>
     <div class="kv" style="margin-top:14px">
       <span>Email</span><b>${esc(me.email)}</b>
       <span>Phone number</span><b>${esc(me.phone||'—')}</b>
@@ -746,16 +864,18 @@ function renderPContribute(main,rows){
   <div class="top"><div class="title"><h1>Contribute</h1><p>Submit the users you acquired today with proof — the admin reviews every request.</p></div>
   <div class="actions"><button class="btn dark" id="addContrib">+ Add contribution</button></div></div>
   <div class="section-box"><div class="toolbar"><h2>My contribution requests</h2><span class="muted">Newest first</span></div>
-  <div style="overflow:auto"><table class="view-table"><thead><tr><th>Date &amp; time</th><th>Project</th><th>Acquired</th><th>Proof</th><th>Note</th><th>Status</th><th>Admin review</th></tr></thead>
+  <div style="overflow:auto"><table class="view-table"><thead><tr><th>ID</th><th>Date &amp; time</th><th>Project</th><th>Acquired</th><th>Proof</th><th>Note</th><th>Status</th><th>Admin review</th></tr></thead>
   <tbody>${rows.length?rows.map(c=>`<tr>
+    <td><b>${esc(c.code||String(c.id).slice(0,6))}</b></td>
     <td>${fmtDT(c.created_at)}</td>
     <td>${esc(c.project_name)}</td>
     <td><b>+${num(c.acquired).toLocaleString()}</b></td>
-    <td>${c.proof_url?`<a href="/api/ios/contributions/${c.id}/proof" target="_blank" rel="noopener"><button class="btn small">View</button></a>`:'—'}</td>
+    <td>${filesCell(c.files)}</td>
     <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(c.note||'')}">${esc(c.note||'—')}</td>
     <td>${pill(CONTRIB_STATUS,c.status)}</td>
     <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(c.review_note||'')}">${c.reviewed_at?esc(c.review_note||'Reviewed'):'Waiting for review'}</td>
   </tr>`).join(''):'<tr><td colspan="7" class="empty">No contribution requests yet. Click “+ Add contribution”.</td></tr>'}</tbody></table></div></div>`;
+  main.querySelectorAll('[data-files]').forEach(b=>b.onclick=()=>filesModal(JSON.parse(b.dataset.files)));
   $('#addContrib').onclick=contributeModal;
 }
 function contributeModal(){
@@ -765,27 +885,60 @@ function contributeModal(){
     <p>Request credit for users you acquired today. The admin accepts or rejects each request after checking the proof.</p>
     <div class="field"><label>Project</label><select id="cProject"><option value="">Select project…</option>${projects.map(x=>`<option value="${x.project.id}">${esc(x.project.name)} · target ${num(x.assigned_target).toLocaleString()}</option>`).join('')}</select></div>
     <div class="field"><label>Today acquired (users)</label><input id="cAcquired" type="number" min="1" step="1" placeholder="e.g. 120"></div>
-    <div class="field"><label>Proof of acquired <small>(image / PDF / document — max 10 MB)</small></label><input id="cFile" type="file" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt"></div>
+    <div class="field"><label>Proof of acquired <small>(up to 10 files · each max 10 MB)</small></label><input id="cFile" type="file" multiple accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt"></div>
     <div class="field"><label>Note <small>(optional)</small></label><input id="cNote" placeholder="Anything the admin should know"></div>
     <div class="modal-actions"><button class="btn" data-close>Cancel</button><button class="btn dark" id="cGo">Send request</button></div>`);
   m.querySelector('#cGo').onclick=async()=>{
     if(!m.querySelector('#cProject').value)return toast('Select a project.');
-    if(!m.querySelector('#cFile').files[0])return toast('Attach a proof file (image / PDF / document).');
+    const picked=[...m.querySelector('#cFile').files];
+    if(!picked.length)return toast('Attach at least one proof file.');
+    if(picked.length>10)return toast('Maximum 10 proof files per request.');
+    if(picked.some(f=>f.size>10*1024*1024))return toast('Each proof file must be 10 MB or smaller.');
     const fd=new FormData();
     fd.append('project_id',m.querySelector('#cProject').value);
     fd.append('acquired',m.querySelector('#cAcquired').value);
     fd.append('note',m.querySelector('#cNote').value);
-    fd.append('file',m.querySelector('#cFile').files[0]);
+    picked.forEach(f=>fd.append('file',f));
     try{await upload('contributions',fd);dropCache();m.remove();toast('Contribution request sent for review.');renderPartner()}
     catch(e){toast(e.message)}
   };
 }
 
+/* ---------- AGENT: HELPDESK ---------- */
+let phdPoll=null;
+async function pHelpdesk(main){
+  main.innerHTML='<p class="muted">Loading…</p>';
+  const render=async()=>{
+    const d=await api('helpdesk');
+    if(pView!=='helpdesk')return;
+    updateHdBadge(d.unread||0);
+    main.innerHTML=`
+    <div class="top"><div class="title"><h1>HelpDesk</h1><p>Your continuous conversation with the administrator.</p></div></div>
+    <div class="section-box" style="padding:0;overflow:hidden">
+      <div class="chat big" id="phLog"></div>
+      <div class="chatbar"><input id="phInput" placeholder="Write a message…"><button class="btn dark" id="phSend">Send</button></div>
+    </div>`;
+    const log=$('#phLog');
+    log.innerHTML=d.messages.length?d.messages.map(m=>`<div class="msg ${m.sender_type==='agent'?'me':''}"><p>${esc(m.body)}</p><time>${fmtDT(m.created_at)} · ${m.sender_type==='agent'?'You':'Admin'}</time></div>`).join(''):'<div class="empty">No messages yet — write to the administrator anytime.</div>';
+    log.scrollTop=log.scrollHeight;
+    $('#phSend').onclick=send;
+    $('#phInput').onkeydown=e=>{if(e.key==='Enter')send()};
+  };
+  const send=async()=>{
+    const input=$('#phInput'),text=input.value.trim();
+    if(!text)return;
+    try{input.value='';await mutate('helpdesk',{method:'POST',body:JSON.stringify({body:text})});await render()}catch(e){toast(e.message)}
+  };
+  await render();
+  clearInterval(phdPoll);
+  phdPoll=setInterval(()=>{if(pView==='helpdesk')render().catch(()=>{})},12000);
+}
+
 /* ═══════════ BOOT ═══════════ */
+
 function boot(){
   if(state?.role==='admin')return adminApp();
   if(state?.role==='partner')return partnerApp();
   landing();
 }
 boot();
-
