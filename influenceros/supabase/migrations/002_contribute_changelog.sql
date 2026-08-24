@@ -36,6 +36,7 @@ create table public.partner_logs (
 );
 create index on public.partner_logs(partner_id, created_at desc);
 
+
 revoke all on public.contributions from anon, authenticated;
 revoke all on public.partner_logs from anon, authenticated;
 alter table public.contributions enable row level security;
