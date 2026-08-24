@@ -8,10 +8,14 @@ const api=async(path,opt={})=>{
   if(!r.ok)throw Error(x.error||'Request failed');
   return x;
 };
+const upload=async(path,formData)=>{
+  let r=await fetch('/api/ios/'+path,{method:'POST',headers:{...(state?.token?{authorization:'Bearer '+state.token}:{})},body:formData});
+  let x=await r.json().catch(()=>({}));if(!r.ok)throw Error(x.error||'Upload failed');return x;
+};
 const viewCache={};
 const dropCache=()=>{for(const k in viewCache)delete viewCache[k]};
 const mutate=async(path,opt={})=>{const r=await api(path,opt);dropCache();return r};
-const warm=()=>['overview','partners','projects','allocations','payments','performance'].forEach(k=>{if(!(k in viewCache))api(k).then(d=>viewCache[k]=d).catch(()=>{})});
+const warm=()=>['overview','partners','projects','allocations','payments','performance','contributions'].forEach(k=>{if(!(k in viewCache))api(k).then(d=>viewCache[k]=d).catch(()=>{})});
 const typing=main=>main.contains(document.activeElement)&&/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName);
 const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const money=n=>'$'+Number(n||0).toLocaleString(undefined,{maximumFractionDigits:2});
@@ -19,12 +23,14 @@ const num=v=>Number(v)||0;
 const initials=n=>String(n||'?').trim().split(/\s+/).map(w=>w[0]).filter(Boolean).slice(0,2).join('').toUpperCase();
 const pct=(a,b)=>b>0?Math.min(999,Math.round(a/b*100)):0;
 const fmtDate=d=>String(d||'').slice(0,10);
+const fmtDT=d=>{const x=new Date(d);return isNaN(x)?String(d||''):x.toLocaleString(undefined,{year:'numeric',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})};
 function toast(m){let e=$('#toast');e.textContent=m;e.classList.add('show');clearTimeout(e._t);e._t=setTimeout(()=>e.classList.remove('show'),3200)}
 
 const TYPE_LABELS={youtuber:'YouTuber',facebook:'Facebook',tiktoker:'TikToker',instagram:'Instagram',marketing_agent:'Marketing Agent',agency:'Agency'};
 const PARTNER_STATUS={disagree:['Disagree','red'],agree:['Agree','green'],not_response:['Not Response','yellow'],waiting:['Waiting','blue']};
 const ALLOC_STATUS={on_target:['On Target','green'],active:['Active','blue'],behind:['Behind','red'],inactive:['Inactive','gray']};
 const PAY_STATUS={scheduled:['Scheduled','blue'],paid:['Paid','green'],pending:['Pending','yellow']};
+const CONTRIB_STATUS={pending:['Pending','yellow'],accepted:['Accepted','green'],rejected:['Rejected','red']};
 const pill=(map,key)=>{const m=map[key]||[String(key),'gray'];return `<span class="pill ${m[1]}">${m[0]}</span>`};
 const projPill=s=>s==='active'?'<span class="pill green">Active</span>':'<span class="pill gray">Inactive</span>';
 
@@ -171,7 +177,7 @@ function agentLoginModal(){
 let aView='dashboard';
 function adminApp(){
   document.title='InfluencerOS — Admin';
-  const nav=[['dashboard','▦','Dashboard'],['partners','◉','Partners'],['projects','◆','Projects'],['allocations','◌','Allocations'],['payments','$','Payments'],['performance','◫','Performance']];
+  const nav=[['dashboard','▦','Dashboard'],['partners','◉','Partners'],['projects','◆','Projects'],['contribute','⇧','Contribute'],['allocations','◌','Allocations'],['payments','$','Payments'],['performance','◫','Performance']];
   app.innerHTML=`<div class="app">
     <aside class="sidebar">
       <div class="logo">Influence<span>OS</span><small>powered by DoxTox</small></div>
@@ -193,6 +199,7 @@ async function renderAdmin(){
     if(aView==='dashboard')return await aDashboard(main);
     if(aView==='partners')return await aPartners(main);
     if(aView==='projects')return await aProjects(main);
+    if(aView==='contribute')return await aContribute(main);
     if(aView==='allocations')return await aAllocations(main);
     if(aView==='payments')return await aPayments(main);
     if(aView==='performance')return await aPerformance(main);
@@ -274,12 +281,13 @@ function renderPartnersView(main,partners){
     <td>${money(p.income)}</td><td>${money(p.paid)}</td><td><b>${money(p.balance)}</b></td>
     <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(p.note||'')}">${esc(p.note||'—')}</td>
     <td>${pill(PARTNER_STATUS,p.status)}</td>
-    <td class="actions-cell"><button class="btn small" data-edit="${p.id}">Edit</button><button class="btn small danger" data-del="${p.id}">×</button></td>
+    <td class="actions-cell"><button class="btn small" data-view="${p.id}">View</button><button class="btn small" data-edit="${p.id}">Edit</button><button class="btn small danger" data-del="${p.id}">×</button></td>
   </tr>`).join(''):'<tr><td colspan="11" class="empty">No partners found.</td></tr>'}</tbody></table></div></div>`;
   $('#addPartner').onclick=()=>partnerModal(null,partners);
   $('#pq').oninput=e=>{pFilter.q=e.target.value;renderPartnersView(main,partners)};
   $('#ptype').onchange=e=>{pFilter.type=e.target.value;renderPartnersView(main,partners)};
   $('#pstatus').onchange=e=>{pFilter.status=e.target.value;renderPartnersView(main,partners)};
+  main.querySelectorAll('[data-view]').forEach(b=>b.onclick=()=>partnerViewModal(partners.find(x=>x.id===b.dataset.view)));
   main.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>{const p=partners.find(x=>x.id===b.dataset.edit);partnerModal(p,partners)});
   main.querySelectorAll('[data-del]').forEach(b=>b.onclick=async()=>{if(!confirm('Delete this partner and all their allocations/payments?'))return;try{await mutate('partners/'+b.dataset.del,{method:'DELETE'});toast('Partner deleted.');renderAdmin()}catch(e){toast(e.message)}});
 }
@@ -511,6 +519,79 @@ function paymentModal(pay,partners){
   };
 }
 
+/* ---------- ADMIN: CONTRIBUTE ---------- */
+async function aContribute(main){
+  if(viewCache.contributions)renderAContribute(main,viewCache.contributions);else main.innerHTML='<p class="muted">Loading…</p>';
+  const rows=await api('contributions');viewCache.contributions=rows;
+  if(!typing(main))renderAContribute(main,rows);
+}
+function renderAContribute(main,rows){
+  const count=k=>rows.filter(r=>r.status===k).length;
+  const proofLink=c=>c.proof_url?`<a href="/api/ios/contributions/${c.id}/proof" target="_blank" rel="noopener"><button class="btn small">View</button></a>`:'—';
+  main.innerHTML=`
+  <div class="top"><div class="title"><h1>Contribute</h1><p>Partner contribution requests — accept to add acquired users automatically.</p></div></div>
+  <div class="kpi-grid">
+    <div class="card stat"><div><div class="label">Pending</div><div class="value">${count('pending')}</div></div></div>
+    <div class="card stat"><div><div class="label">Accepted</div><div class="value">${count('accepted')}</div></div></div>
+    <div class="card stat"><div><div class="label">Rejected</div><div class="value">${count('rejected')}</div></div></div>
+  </div>
+  <div class="section-box"><div class="toolbar"><h2>All contribution requests</h2><span class="muted">Every partner · newest first</span></div>
+  <div style="overflow:auto"><table class="view-table"><thead><tr><th>Date &amp; time</th><th>Partner</th><th>Project</th><th>Acquired</th><th>Proof</th><th>Note</th><th>Status</th><th>Review</th><th></th></tr></thead>
+  <tbody>${rows.length?rows.map(c=>`<tr>
+    <td>${fmtDT(c.created_at)}</td>
+    <td><div class="partner"><div class="avatar">${esc(initials(c.partner_name))}</div><div><b>${esc(c.partner_name)}</b><small>#${esc(c.partner_code)}</small></div></div></td>
+    <td>${esc(c.project_name)}</td><td><b>+${num(c.acquired).toLocaleString()}</b></td>
+    <td>${proofLink(c)}</td>
+    <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(c.note||'')}">${esc(c.note||'—')}</td>
+    <td>${pill(CONTRIB_STATUS,c.status)}</td>
+    <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(c.review_note||'')}">${c.reviewed_at?esc(c.review_note||'—'):'—'}</td>
+    <td class="actions-cell">${c.status==='pending'?`<button class="btn small" data-accept="${c.id}" data-n="${num(c.acquired)}">Accept</button><button class="btn small danger" data-reject="${c.id}">Reject</button>`:''}</td>
+  </tr>`).join(''):'<tr><td colspan="9" class="empty">No contribution requests yet.</td></tr>'}</tbody></table></div></div>`;
+  main.querySelectorAll('[data-accept]').forEach(b=>b.onclick=async()=>{
+    if(!confirm(`Accept this contribution? ${b.dataset.n} users will be added to the allocation's Users acquired automatically.`))return;
+    try{await mutate('contributions/'+b.dataset.accept,{method:'PATCH',body:JSON.stringify({action:'accept'})});toast('Contribution accepted — acquired users updated.');renderAdmin()}catch(e){toast(e.message)}
+  });
+  main.querySelectorAll('[data-reject]').forEach(b=>b.onclick=async()=>{
+    const note=prompt('Optional reason for rejection:');if(note===null)return;
+    try{await mutate('contributions/'+b.dataset.reject,{method:'PATCH',body:JSON.stringify({action:'reject',note})});toast('Contribution rejected.');renderAdmin()}catch(e){toast(e.message)}
+  });
+}
+
+/* ---------- ADMIN: PARTNER VIEW MODAL (details + edit history) ---------- */
+function partnerViewModal(p){
+  const ov=modal(`<h2>${esc(p.name)}</h2><p>Partner #${esc(p.partner_code)} — profile details &amp; edit history</p>
+    <div id="pvBody"><p class="muted">Loading…</p></div>
+    <div class="modal-actions"><button class="btn" data-close>Close</button></div>`);
+  api(`partners/${p.id}/logs`).then(d=>{
+    const me=d.partner,accts=me.accounts||[];
+    ov.querySelector('#pvBody').innerHTML=`
+    <div class="kv">
+      <span>Partner ID</span><b>#${esc(me.partner_code)}</b>
+      <span>Name</span><b>${esc(me.name)}</b>
+      <span>Email</span><b>${esc(me.email)}</b>
+      <span>Phone</span><b>${esc(me.phone||'—')}</b>
+      <span>Type</span><b>${TYPE_LABELS[me.type]||me.type}</b>
+      <span>Status</span><b>${pill(PARTNER_STATUS,me.status)}</b>
+      <span>Login access</span><b>${me.login_access?'Enabled':'Disabled'}</b>
+      <span>Note</span><b>${esc(me.note||'—')}</b>
+      <span>Joined</span><b>${fmtDate(me.created_at)}</b>
+    </div>
+    <div class="section-head" style="margin-top:16px"><h2>Social accounts</h2></div>
+    ${accts.length?accts.map(a=>`<div class="target-row"><b>${esc(a.label||'Account')}</b><span style="grid-column:2/5"><a href="${esc(a.url)}" target="_blank" rel="noopener">${esc(a.url)}</a></span></div>`).join(''):'<p class="muted" style="font-size:12px">No social accounts.</p>'}
+    <div class="section-head" style="margin-top:16px"><h2>Financial (auto)</h2></div>
+    <div class="kv">
+      <span>Projects</span><b>${p.projects??0}</b>
+      <span>Total acquired users</span><b>${num(p.acquired_users).toLocaleString()}</b>
+      <span>Total income</span><b>${money(p.income)}</b>
+      <span>Paid</span><b>${money(p.paid)}</b>
+      <span>Remaining balance</span><b>${money(p.balance)}</b>
+    </div>
+    <div class="section-head" style="margin-top:16px"><h2>Edit history</h2><span class="muted">Changes made by the partner</span></div>
+    <div style="overflow:auto"><table class="view-table"><thead><tr><th>When</th><th>Field</th><th>Old</th><th>New</th></tr></thead>
+    <tbody>${d.logs.length?d.logs.map(L=>`<tr><td>${fmtDT(L.created_at)}</td><td><b>${esc(L.field)}</b></td><td class="muted" style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(L.old_value||'—')}</td><td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(L.new_value||'—')}</td></tr>`).join(''):'<tr><td colspan="4" class="empty">No profile edits recorded yet.</td></tr>'}</tbody></table></div>`;
+  }).catch(e=>{ov.querySelector('#pvBody').innerHTML=`<div class="empty">${esc(e.message)}</div>`});
+}
+
 /* ---------- ADMIN: PERFORMANCE ---------- */
 async function aPerformance(main){
   if(viewCache.performance)renderPerformanceView(main,viewCache.performance);else main.innerHTML='<p class="muted">Loading…</p>';
@@ -539,7 +620,7 @@ function aSettings(main){
 let pView='profile';
 function partnerApp(){
   document.title='InfluencerOS — Partner';
-  const nav=[['profile','◉','Profile'],['projects','◆','Projects'],['payments','$','Payments'],['performance','◫','Performance']];
+  const nav=[['profile','◉','Profile'],['contribute','⇧','Contribute'],['projects','◆','Projects'],['payments','$','Payments'],['performance','◫','Performance']];
   app.innerHTML=`<div class="app">
     <aside class="sidebar">
       <div class="logo">Influence<span>OS</span><small>partner portal · DoxTox</small></div>
@@ -557,6 +638,7 @@ async function renderPartner(){
   const main=$('#main');if(!main)return;
   try{
     if(pView==='profile')return await pProfile(main);
+    if(pView==='contribute')return await pContribute(main);
     if(pView==='projects')return await pOverview(main,'projects');
     if(pView==='payments')return await pOverview(main,'payments');
     if(pView==='performance')return await pOverview(main,'performance');
@@ -572,7 +654,7 @@ function renderPProfile(main,me){
   <div class="top"><div class="title"><h1>My profile</h1><p>Your partner account information.</p></div>
   <div class="actions"><button class="btn dark" id="editProfile">Edit profile</button></div></div>
   <div class="section-box">
-    <div class="detail-head"><div style="display:flex;gap:14px;align-items:center"><div class="avatar" style="width:52px;height:52px;font-size:16px">${esc(initials(me.name))}</div><div><h2>${esc(me.name)}</h2><p>Partner ID <b>#${esc(me.partner_code)}</b> · ${pill(PARTNER_STATUS,me.status)}</p></div></div><span class="pill ${me.login_access?'green':'red'}">${me.login_access?'Login enabled':'Login disabled'}</span></div>
+    <div class="detail-head"><div style="display:flex;gap:14px;align-items:center"><div class="avatar" style="width:52px;height:52px;font-size:16px">${esc(initials(me.name))}</div><div><h2>${esc(me.name)}</h2><p>Partner ID <b>#${esc(me.partner_code)}</b></p></div></div><span class="pill ${me.login_access?'green':'red'}">${me.login_access?'Login enabled':'Login disabled'}</span></div>
     <div class="kv" style="margin-top:14px">
       <span>Email</span><b>${esc(me.email)}</b>
       <span>Phone number</span><b>${esc(me.phone||'—')}</b>
@@ -583,12 +665,34 @@ function renderPProfile(main,me){
     ${(me.accounts||[]).length?me.accounts.map(a=>`<div class="target-row"><b>${esc(a.label||'Account')}</b><span style="grid-column:2/5"><a href="${esc(a.url)}" target="_blank" rel="noopener">${esc(a.url)}</a></span></div>`).join(''):'<p class="muted" style="font-size:12px">No social accounts saved.</p>'}
   </div>`;
   $('#editProfile').onclick=()=>{
-    const ov=modal(`<h2>Edit profile</h2><p>For now, only your password can be changed. Contact the administrator to update other details.</p>
-      <div class="field"><label>New password</label><input id="npass" type="password" placeholder="Minimum 6 characters"></div>
-      <div class="modal-actions"><button class="btn" data-close>Cancel</button><button class="btn dark" id="npGo">Save password</button></div>`);
-    ov.querySelector('#npGo').onclick=async()=>{
-      try{await mutate('me/password',{method:'POST',body:JSON.stringify({password:ov.querySelector('#npass').value})});ov.remove();toast('Password updated.')}
-      catch(e){toast(e.message)}
+    const accounts=(me.accounts&&me.accounts.length?me.accounts:[{label:'',url:''}]);
+    const ov=modal(`
+    <h2>Edit profile</h2>
+    <p>You can update your own details. Every change is logged for the administrator.</p>
+    <div class="field-row">
+      <div class="field"><label>Name</label><input id="sName" value="${esc(me.name)}"></div>
+      <div class="field"><label>Email</label><input id="sEmail" type="email" value="${esc(me.email)}"></div>
+    </div>
+    <div class="field"><label>Phone number</label><input id="sPhone" value="${esc(me.phone||'')}"></div>
+    <div class="field"><label>Social / account information <small>(up to 5)</small></label><div id="sAcctBox"></div>
+      <button class="btn small" id="sAddAcct" type="button">+ Add URL</button></div>
+    <div class="field"><label>Password <small>(leave blank to keep current)</small></label><input id="sPass" type="password" placeholder="Minimum 6 characters"></div>
+    <div class="modal-actions"><button class="btn" data-close>Cancel</button><button class="btn dark" id="sGo">Save changes</button></div>`);
+    const box=ov.querySelector('#sAcctBox');
+    const addRow=(a={label:'',url:''})=>{
+      if(box.children.length>=5){toast('Maximum 5 account URLs.');return}
+      const r=document.createElement('div');r.className='acct-row';
+      r.innerHTML=`<input placeholder="Label (YouTube…)" value="${esc(a.label)}"><input placeholder="https://…" value="${esc(a.url)}"><button class="btn small danger" type="button">×</button>`;
+      r.querySelector('button').onclick=()=>r.remove();box.append(r);
+    };
+    accounts.forEach(addRow);
+    ov.querySelector('#sAddAcct').onclick=()=>addRow();
+    ov.querySelector('#sGo').onclick=async()=>{
+      const accountsList=[...box.querySelectorAll('.acct-row')].map(r=>({label:r.children[0].value,url:r.children[1].value})).filter(a=>a.label.trim()||a.url.trim());
+      try{
+        await mutate('me/profile',{method:'POST',body:JSON.stringify({name:ov.querySelector('#sName').value,email:ov.querySelector('#sEmail').value,phone:ov.querySelector('#sPhone').value,accounts:accountsList,password:ov.querySelector('#sPass').value||undefined})});
+        ov.remove();toast('Profile updated.');renderPartner();
+      }catch(e){toast(e.message)}
     };
   };
 }
@@ -628,6 +732,53 @@ function renderPPerformance(main,d){
     </div>
     <div class="section-box"><div class="toolbar"><h2>Project-wise performance</h2></div><div style="overflow:auto"><table class="view-table"><thead><tr><th>Project</th><th>My target</th><th>My acquired</th><th>Achievement</th><th>Commission</th><th>Status</th></tr></thead>
     <tbody>${d.projects.length?d.projects.map(x=>`<tr><td><b>${esc(x.project?.name||'—')}</b></td><td>${num(x.assigned_target).toLocaleString()}</td><td>${num(x.acquired_users).toLocaleString()}</td><td>${x.pct}%</td><td>${money(x.commission)}</td><td>${pill(ALLOC_STATUS,x.status)}</td></tr>`).join(''):'<tr><td colspan="6" class="empty">No allocations yet.</td></tr>'}</tbody></table></div></div>`;
+}
+
+/* ---------- PARTNER: CONTRIBUTE ---------- */
+async function pContribute(main){
+  if(viewCache['contributions/mine'])renderPContribute(main,viewCache['contributions/mine']);else main.innerHTML='<p class="muted">Loading…</p>';
+  const [rows,ov]=await Promise.all([api('contributions/mine'),api('me/overview')]);
+  viewCache['contributions/mine']=rows;viewCache['me/overview']=ov;
+  if(!typing(main))renderPContribute(main,rows);
+}
+function renderPContribute(main,rows){
+  main.innerHTML=`
+  <div class="top"><div class="title"><h1>Contribute</h1><p>Submit the users you acquired today with proof — the admin reviews every request.</p></div>
+  <div class="actions"><button class="btn dark" id="addContrib">+ Add contribution</button></div></div>
+  <div class="section-box"><div class="toolbar"><h2>My contribution requests</h2><span class="muted">Newest first</span></div>
+  <div style="overflow:auto"><table class="view-table"><thead><tr><th>Date &amp; time</th><th>Project</th><th>Acquired</th><th>Proof</th><th>Note</th><th>Status</th><th>Admin review</th></tr></thead>
+  <tbody>${rows.length?rows.map(c=>`<tr>
+    <td>${fmtDT(c.created_at)}</td>
+    <td>${esc(c.project_name)}</td>
+    <td><b>+${num(c.acquired).toLocaleString()}</b></td>
+    <td>${c.proof_url?`<a href="/api/ios/contributions/${c.id}/proof" target="_blank" rel="noopener"><button class="btn small">View</button></a>`:'—'}</td>
+    <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(c.note||'')}">${esc(c.note||'—')}</td>
+    <td>${pill(CONTRIB_STATUS,c.status)}</td>
+    <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(c.review_note||'')}">${c.reviewed_at?esc(c.review_note||'Reviewed'):'Waiting for review'}</td>
+  </tr>`).join(''):'<tr><td colspan="7" class="empty">No contribution requests yet. Click “+ Add contribution”.</td></tr>'}</tbody></table></div></div>`;
+  $('#addContrib').onclick=contributeModal;
+}
+function contributeModal(){
+  const ov=viewCache['me/overview'],projects=(ov?.projects||[]).filter(x=>x.project);
+  const m=modal(`
+    <h2>Add contribution</h2>
+    <p>Request credit for users you acquired today. The admin accepts or rejects each request after checking the proof.</p>
+    <div class="field"><label>Project</label><select id="cProject"><option value="">Select project…</option>${projects.map(x=>`<option value="${x.project.id}">${esc(x.project.name)} · target ${num(x.assigned_target).toLocaleString()}</option>`).join('')}</select></div>
+    <div class="field"><label>Today acquired (users)</label><input id="cAcquired" type="number" min="1" step="1" placeholder="e.g. 120"></div>
+    <div class="field"><label>Proof of acquired <small>(image / PDF / document — max 10 MB)</small></label><input id="cFile" type="file" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt"></div>
+    <div class="field"><label>Note <small>(optional)</small></label><input id="cNote" placeholder="Anything the admin should know"></div>
+    <div class="modal-actions"><button class="btn" data-close>Cancel</button><button class="btn dark" id="cGo">Send request</button></div>`);
+  m.querySelector('#cGo').onclick=async()=>{
+    if(!m.querySelector('#cProject').value)return toast('Select a project.');
+    if(!m.querySelector('#cFile').files[0])return toast('Attach a proof file (image / PDF / document).');
+    const fd=new FormData();
+    fd.append('project_id',m.querySelector('#cProject').value);
+    fd.append('acquired',m.querySelector('#cAcquired').value);
+    fd.append('note',m.querySelector('#cNote').value);
+    fd.append('file',m.querySelector('#cFile').files[0]);
+    try{await upload('contributions',fd);dropCache();m.remove();toast('Contribution request sent for review.');renderPartner()}
+    catch(e){toast(e.message)}
+  };
 }
 
 /* ═══════════ BOOT ═══════════ */
