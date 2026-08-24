@@ -72,11 +72,11 @@ export async function onRequest(context){
     }
     if(path==='auth/partner/login'&&method==='POST'){
       let b=await body(request),id=String(b.identifier||'').trim().toLowerCase();
-      if(!id||!b.password)return fail('Partner ID / email and password are required.');
+      if(!id||!b.password)return fail('Agent ID / email and password are required.');
       const byCode=/^\d{4}$/.test(id)?`partners?partner_code=eq.${id}&select=*`:`partners?email=eq.${encodeURIComponent(id)}&select=*`;
       let [p]=(await db(env,byCode)).filter(x=>x.email===id||String(b.identifier).trim()===x.partner_code);
-      if(!p||!await check(String(b.password),p.password_hash))return fail('Invalid Partner ID / email or password.',401);
-      if(!p.login_access)return fail('Login access is disabled for this partner account.',403);
+      if(!p||!await check(String(b.password),p.password_hash))return fail('Invalid Agent ID / email or password.',401);
+      if(!p.login_access)return fail('Login access is disabled for this agent account.',403);
       return json({token:await token({id:p.id,role:'partner',exp:Math.floor(Date.now()/1000)+28800},env.IOS_SESSION_SECRET),user:publicPartner(p)});
     }
 
@@ -88,19 +88,20 @@ export async function onRequest(context){
     // partner sessions stay valid only while the account exists & keeps access
     if(s.role==='partner'){
       let [me]=await db(env,`partners?id=eq.${s.id}&select=id,login_access`);
-      if(!me)return fail('This partner account no longer exists.',403);
-      if(!me.login_access)return fail('Login access is disabled for this partner account.',403);
+      if(!me)return fail('This agent account no longer exists.',403);
+      if(!me.login_access)return fail('Login access is disabled for this agent account.',403);
     }
 
-    if(path.startsWith('contributions/')&&path.endsWith('/proof')&&method==='GET'){
+    if(/^files\/[^/]+$/.test(path)&&method==='GET'){
       const id=path.split('/')[1];
-      let [c]=await db(env,`contributions?id=eq.${id}&select=partner_id,proof_url,proof_name,proof_type`);
-      if(!c||!c.proof_url)return fail('Proof not found.',404);
-      if(s.role!=='admin'&&s.id!==c.partner_id)return fail('Permission denied.',403);
-      if(!env.IOS_PROOF)return fail('Proof storage is not configured.',500);
-      const obj=await env.IOS_PROOF.get(c.proof_url);
-      if(!obj)return fail('Proof file missing from storage.',404);
-      return new Response(obj.body,{headers:{'content-type':obj.httpMetadata?.contentType||c.proof_type||'application/octet-stream','content-disposition':`inline; filename="${c.proof_name||'proof'}"`,'cache-control':'private, no-store'}});
+      let [f]=await db(env,`contribution_files?id=eq.${id}&select=*`);
+      if(!f)return fail('File not found.',404);
+      if(s.role!=='admin'&&s.id!==f.partner_id)return fail('Permission denied.',403);
+      if(!env.VAULTIUM&&!env.IOS_PROOF)return fail('File storage is not configured.',500);
+      let obj=env.VAULTIUM?await env.VAULTIUM.get(f.r2_key):null;
+      if(!obj&&env.IOS_PROOF)obj=await env.IOS_PROOF.get(f.r2_key);
+      if(!obj)return fail('File missing from storage.',404);
+      return new Response(obj.body,{headers:{'content-type':obj.httpMetadata?.contentType||f.file_type||'application/octet-stream','content-disposition':`inline; filename="${f.file_name||'file'}"`,'cache-control':'private, no-store'}});
     }
 
     /* ---------- PARTNER (agent) SELF-SERVICE ---------- */
@@ -120,11 +121,11 @@ export async function onRequest(context){
         if(!b.name||!email||!b.phone)return fail('Name, email and phone are required.');
         if(b.password&&String(b.password).length<6)return fail('Password must be at least 6 characters.');
         let dup=await db(env,`partners?email=eq.${encodeURIComponent(email)}&select=id`);
-        if(dup.length&&dup[0].id!==s.id)return fail('A partner with this email already exists.',409);
+        if(dup.length&&dup[0].id!==s.id)return fail('An agent with this email already exists.',409);
         const accounts=cleanAccounts(b.accounts);
         if(accounts.length>5)return fail('Maximum 5 account URLs.');
         const [old]=await db(env,`partners?id=eq.${s.id}&select=*`);
-        if(!old)return fail('Partner not found.',404);
+        if(!old)return fail('Agent not found.',404);
         let patch={name:String(b.name).slice(0,120),email,phone:String(b.phone).slice(0,40),accounts,updated_at:new Date().toISOString()};
         if(b.password)patch.password_hash=await hash(String(b.password));
         const [out]=await db(env,`partners?id=eq.${s.id}`,{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify(patch)});
@@ -162,29 +163,55 @@ export async function onRequest(context){
         });
       }
       if(path==='contributions/mine'&&method==='GET'){
-        let [rows,projects]=await Promise.all([
+        let [rows,projects,files]=await Promise.all([
           db(env,`contributions?partner_id=eq.${s.id}&select=*&order=created_at.desc&limit=500`),
-          db(env,'projects?select=id,name')]);
+          db(env,'projects?select=id,name'),
+          db(env,`contribution_files?partner_id=eq.${s.id}&select=*&order=created_at.asc`)]);
         const pm=Object.fromEntries(projects.map(x=>[x.id,x.name]));
-        return json(rows.map(c=>({...c,project_name:pm[c.project_id]||'—'})));
+        return json(rows.map(c=>({...c,project_name:pm[c.project_id]||'—',files:files.filter(f=>f.contribution_id===c.id)})));
       }
       if(path==='contributions'&&method==='POST'){
-        if(!env.IOS_PROOF)return fail('Proof storage is not configured. Add the IOS_PROOF R2 bucket binding.',500);
+        if(!env.VAULTIUM&&!env.IOS_PROOF)return fail('File storage is not configured. Add the VAULTIUM R2 bucket binding.',500);
+        const bucket=env.VAULTIUM||env.IOS_PROOF;
         let form;try{form=await request.formData()}catch{return fail('Invalid form submission.')}
         const projectId=String(form.get('project_id')||''),acquired=Math.round(num(form.get('acquired'))),note=String(form.get('note')||'').slice(0,500);
-        const file=form.get('file');
+        const files=form.getAll('file').filter(f=>f&&typeof f!=='string'&&f.size);
         if(!projectId)return fail('Select a project.');
         if(!(acquired>0))return fail('Today acquired must be a number greater than zero.');
-        if(!file||typeof file==='string'||!file.size)return fail('Proof of acquisition (image / file / document) is required.');
-        if(file.size>10*1024*1024)return fail('Proof file must be 10 MB or smaller.');
-        const ext=String(file.name||'').split('.').pop().toLowerCase();
-        if(!PROOF_TYPES.includes(file.type)&&!PROOF_EXT.includes(ext))return fail('Unsupported proof file type. Use an image, PDF, document or spreadsheet.');
+        if(!files.length)return fail('At least one proof file (image / file / document) is required.');
+        if(files.length>10)return fail('Maximum 10 proof files per request.');
+        for(const file of files){
+          if(file.size>10*1024*1024)return fail(`Each proof file must be 10 MB or smaller (${file.name} is ${(file.size/1048576).toFixed(1)} MB).`);
+          const ext=String(file.name||'').split('.').pop().toLowerCase();
+          if(!PROOF_TYPES.includes(file.type)&&!PROOF_EXT.includes(ext))return fail(`Unsupported proof file type: ${file.name}. Use images, PDF, documents or spreadsheets.`);
+        }
         let [alloc]=await db(env,`allocations?project_id=eq.${projectId}&partner_id=eq.${s.id}&select=id`);
         if(!alloc)return fail('You have no allocation for the selected project.');
         const id=crypto.randomUUID();
-        const key=`proof/${s.id}/${id}/${String(file.name||'proof').replace(/[^\w.\- ]+/g,'_').slice(0,120)}`;
-        await env.IOS_PROOF.put(key,await file.arrayBuffer(),{httpMetadata:{contentType:file.type||'application/octet-stream'}});
-        const [out]=await db(env,'contributions',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({id,partner_id:s.id,project_id:projectId,allocation_id:alloc.id,acquired,note:note||null,proof_url:key,proof_name:String(file.name||'proof').slice(0,200),proof_type:file.type||null,proof_size:file.size,status:'pending'})});
+        let code=null;
+        for(let i2=0;i2<15;i2++){let c='C'+String(crypto.getRandomValues(new Uint32Array(1))[0]%90000+10000);let used=await db(env,`contributions?code=eq.${c}&select=id`);if(!used.length){code=c;break}}
+        if(!code)throw Error('Could not allocate a contribution code. Please retry.');
+        const saved=[];
+        for(let i2=0;i2<files.length;i2++){
+          const file=files[i2];
+          const key=`ios/proof/${s.id}/${id}/${i2+1}-${String(file.name||'proof').replace(/[^\w.\- ]+/g,'_').slice(0,120)}`;
+          await bucket.put(key,await file.arrayBuffer(),{httpMetadata:{contentType:file.type||'application/octet-stream'}});
+          const [row]=await db(env,'contribution_files',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({contribution_id:id,partner_id:s.id,file_name:String(file.name||'proof').slice(0,200),file_type:file.type||null,file_size:file.size,r2_key:key})});
+          saved.push(row);
+        }
+        const [out]=await db(env,'contributions',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({id,code,partner_id:s.id,project_id:projectId,allocation_id:alloc.id,acquired,note:note||null})});
+        return json({...out,files:saved},201);
+      }
+      if(path==='helpdesk'&&method==='GET'){
+        let rows=await db(env,`helpdesk_messages?partner_id=eq.${s.id}&select=*&order=created_at.asc&limit=1000`);
+        const unread=rows.filter(m=>m.sender_type==='admin'&&!m.read_by_agent).length;
+        if(unread)await db(env,`helpdesk_messages?partner_id=eq.${s.id}&sender_type=eq.admin&read_by_agent=eq.false`,{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify({read_by_agent:true})});
+        return json({messages:rows.map(m=>({...m,read_by_agent:true})),unread:0});
+      }
+      if(path==='helpdesk'&&method==='POST'){
+        let b=await body(request),text=String(b.body||'').trim();
+        if(!text)return fail('Message cannot be empty.');
+        const [out]=await db(env,'helpdesk_messages',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({partner_id:s.id,sender_type:'agent',sender_id:s.id,body:text.slice(0,2000),read_by_agent:true})});
         return json(out,201);
       }
       return fail('Not found.',404);
@@ -242,7 +269,7 @@ export async function onRequest(context){
       if(!PARTNER_TYPES.includes(b.type))return fail('Invalid partner type.');
       if(!PARTNER_STATUSES.includes(b.status))return fail('Invalid partner status.');
       let exists=await db(env,`partners?email=eq.${encodeURIComponent(email)}&select=id`);
-      if(exists.length)return fail('A partner with this email already exists.',409);
+      if(exists.length)return fail('An agent with this email already exists.',409);
       let partnerCode=null;
       for(let i=0;i<15;i++){let code=String(crypto.getRandomValues(new Uint32Array(1))[0]%9000+1000);let used=await db(env,`partners?partner_code=eq.${code}&select=id`);if(!used.length){partnerCode=code;break}}
       if(!partnerCode)throw Error('Could not allocate a 4-digit Partner ID. Please retry.');
@@ -251,10 +278,10 @@ export async function onRequest(context){
     }
     if(path.startsWith('partners/')&&method==='PATCH'){
       let id=path.split('/')[1],[existing]=await db(env,`partners?id=eq.${id}&select=*`);
-      if(!existing)return fail('Partner not found.',404);
+      if(!existing)return fail('Agent not found.',404);
       let b=await body(request),patch={updated_at:new Date().toISOString()};
       for(const k of ['name','phone','note'])if(b[k]!==undefined)patch[k]=String(b[k]).slice(0,500);
-      if(b.email!==undefined){let email=String(b.email).trim().toLowerCase();if(!email)return fail('Email cannot be empty.');let dup=await db(env,`partners?email=eq.${encodeURIComponent(email)}&select=id`);if(dup.length&&dup[0].id!==id)return fail('A partner with this email already exists.',409);patch.email=email;}
+      if(b.email!==undefined){let email=String(b.email).trim().toLowerCase();if(!email)return fail('Email cannot be empty.');let dup=await db(env,`partners?email=eq.${encodeURIComponent(email)}&select=id`);if(dup.length&&dup[0].id!==id)return fail('An agent with this email already exists.',409);patch.email=email;}
       if(b.type!==undefined){if(!PARTNER_TYPES.includes(b.type))return fail('Invalid partner type.');patch.type=b.type}
       if(b.status!==undefined){if(!PARTNER_STATUSES.includes(b.status))return fail('Invalid partner status.');patch.status=b.status}
       if(b.login_access!==undefined)patch.login_access=!!b.login_access;
@@ -308,10 +335,10 @@ export async function onRequest(context){
       let [project]=await db(env,`projects?id=eq.${b.project_id}&select=id`);
       let [partner]=await db(env,`partners?id=eq.${b.partner_id}&select=id,status`);
       if(!project)return fail('Project not found.',404);
-      if(!partner)return fail('Partner not found.',404);
-      if(partner.status!=='agree')return fail('Only partners with status “Agree” can be allocated to a project.',400);
+      if(!partner)return fail('Agent not found.',404);
+      if(partner.status!=='agree')return fail('Only agents with status “Agree” can be allocated to a project.',400);
       let dup=await db(env,`allocations?project_id=eq.${b.project_id}&partner_id=eq.${b.partner_id}&select=id`);
-      if(dup.length)return fail('This partner already has an allocation for the project.',409);
+      if(dup.length)return fail('This agent already has an allocation for the project.',409);
       let [out]=await db(env,'allocations',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({project_id:b.project_id,partner_id:b.partner_id,assigned_target:Math.max(0,Math.round(num(b.assigned_target))),acquired_users:Math.max(0,Math.round(num(b.acquired_users))),commission:num(b.commission),note:b.note?String(b.note).slice(0,500):null,status:b.status})});
       return json(out,201);
     }
@@ -340,10 +367,10 @@ export async function onRequest(context){
       let amount=num(b.amount);
       if(amount<=0)return fail('Payment amount must be greater than zero.');
       let alloc=await db(env,`allocations?project_id=eq.${b.project_id}&partner_id=eq.${b.partner_id}&select=id`);
-      if(!alloc.length)return fail('This partner has no allocation for the selected project.',400);
+      if(!alloc.length)return fail('This agent has no allocation for the selected project.',400);
       let {stats}=await partnerStats(env,[b.partner_id]);
       const balance=stats[b.partner_id]?.balance??0;
-      if(amount>balance)return fail(`Payment amount cannot exceed the partner's available balance (${balance.toFixed(2)}).`,400);
+      if(amount>balance)return fail(`Payment amount cannot exceed the agent's available balance (${balance.toFixed(2)}).`,400);
       let [out]=await db(env,'payments',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({partner_id:b.partner_id,project_id:b.project_id,payment_date:b.payment_date||new Date().toISOString().slice(0,10),amount:Math.round(amount*100)/100,method:String(b.method||'bank').slice(0,40),transaction_id:b.transaction_id?String(b.transaction_id).slice(0,100):null,status:b.status,note:b.note?String(b.note).slice(0,500):null})});
       return json(out,201);
     }
@@ -411,12 +438,13 @@ export async function onRequest(context){
     }
 
     if(path==='contributions'&&method==='GET'){
-      let [rows,partners,projects]=await Promise.all([
+      let [rows,partners,projects,files]=await Promise.all([
         db(env,'contributions?select=*&order=created_at.desc&limit=1000'),
         db(env,'partners?select=id,name,partner_code'),
-        db(env,'projects?select=id,name')]);
+        db(env,'projects?select=id,name'),
+        db(env,'contribution_files?select=*&order=created_at.asc')]);
       const pm=Object.fromEntries(projects.map(x=>[x.id,x.name])),sm=Object.fromEntries(partners.map(x=>[x.id,x]));
-      return json(rows.map(c=>({...c,partner_name:sm[c.partner_id]?.name||'—',partner_code:sm[c.partner_id]?.partner_code||'',project_name:pm[c.project_id]||'—'})));
+      return json(rows.map(c=>({...c,partner_name:sm[c.partner_id]?.name||'—',partner_code:sm[c.partner_id]?.partner_code||'',project_name:pm[c.project_id]||'—',files:files.filter(f=>f.contribution_id===c.id)})));
     }
     if(path.startsWith('contributions/')&&method==='PATCH'){
       const id=path.split('/')[1];
@@ -439,11 +467,66 @@ export async function onRequest(context){
       let [logs,partner]=await Promise.all([
         db(env,`partner_logs?partner_id=eq.${id}&select=*&order=created_at.desc&limit=200`),
         db(env,`partners?id=eq.${id}&select=*`)]);
-      if(!partner.length)return fail('Partner not found.',404);
+      if(!partner.length)return fail('Agent not found.',404);
       return json({partner:publicPartner(partner[0]),logs});
     }
 
-     
+    if(path==='vaultium'&&method==='GET'){
+      let [files,contributions,partners,projects]=await Promise.all([
+        db(env,'contribution_files?select=*&order=created_at.desc&limit=2000'),
+        db(env,'contributions?select=id,code,project_id,partner_id,created_at'),
+        db(env,'partners?select=id,name,partner_code'),
+        db(env,'projects?select=id,name')]);
+      const pm=Object.fromEntries(projects.map(x=>[x.id,x.name])),sm=Object.fromEntries(partners.map(x=>[x.id,x]));
+      return json(files.map(f=>{
+        const c=contributions.find(x=>x.id===f.contribution_id);
+        return {...f,contribution_code:c?.code||'',project_name:c?(pm[c.project_id]||'—'):'—',partner_name:sm[f.partner_id]?.name||'—',partner_code:sm[f.partner_id]?.partner_code||''};
+      }));
+    }
+    if(/^files\/[^/]+$/.test(path)&&method==='DELETE'){
+      let [f]=await db(env,`contribution_files?id=eq.${path.split('/')[1]}&select=*`);
+      if(!f)return fail('File not found.',404);
+      if(env.VAULTIUM)await env.VAULTIUM.delete(f.r2_key).catch(()=>{});
+      else if(env.IOS_PROOF)await env.IOS_PROOF.delete(f.r2_key).catch(()=>{});
+      await db(env,`contribution_files?id=eq.${f.id}`,{method:'DELETE'});
+      return json({ok:true});
+    }
+
+    if(path==='helpdesk'&&method==='GET'&&s.role==='admin'){
+      let [rows,partners]=await Promise.all([
+        db(env,'helpdesk_messages?select=*&order=created_at.desc&limit=5000'),
+        db(env,'partners?select=id,name,partner_code')]);
+      const sm=Object.fromEntries(partners.map(x=>[x.id,x]));
+      const threads={};
+      for(const m of rows){
+        threads[m.partner_id]??={partner_id:m.partner_id,partner_name:sm[m.partner_id]?.name||'—',partner_code:sm[m.partner_id]?.partner_code||'',last:'',last_at:m.created_at,unread:0,total:0};
+        const t=threads[m.partner_id];
+        t.total++;
+        if(m.sender_type==='agent'&&!m.read_by_admin)t.unread++;
+        if(!t.last_at||new Date(m.created_at)>=new Date(t.last_at)){t.last=m.body;t.last_at=m.created_at}
+      }
+      const list=Object.values(threads).sort((a,b)=>new Date(b.last_at)-new Date(a.last_at));
+      return json({threads:list,totalUnread:list.reduce((a,t)=>a+t.unread,0)});
+    }
+    if(/^helpdesk\/[^/]+$/.test(path)&&method==='GET'&&s.role==='admin'){
+      const pid=path.split('/')[1];
+      let [rows,partner]=await Promise.all([
+        db(env,`helpdesk_messages?partner_id=eq.${pid}&select=*&order=created_at.asc&limit=1000`),
+        db(env,`partners?id=eq.${pid}&select=id,name,partner_code`)]);
+      if(!partner.length)return fail('Agent not found.',404);
+      await db(env,`helpdesk_messages?partner_id=eq.${pid}&sender_type=eq.agent&read_by_admin=eq.false`,{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify({read_by_admin:true})});
+      return json({partner:partner[0],messages:rows.map(m=>({...m,read_by_admin:true}))});
+    }
+    if(/^helpdesk\/[^/]+$/.test(path)&&method==='POST'&&s.role==='admin'){
+      const pid=path.split('/')[1];
+      let b=await body(request),text=String(b.body||'').trim();
+      if(!text)return fail('Message cannot be empty.');
+      let [partner]=await db(env,`partners?id=eq.${pid}&select=id`);
+      if(!partner)return fail('Agent not found.',404);
+      const [out]=await db(env,'helpdesk_messages',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({partner_id:pid,sender_type:'admin',sender_id:s.id,body:text.slice(0,2000),read_by_admin:true})});
+      return json(out,201);
+    }
+
     return fail('Not found.',404);
   }catch(e){return fail(e.message||'Unexpected server error.',500)}
 }
