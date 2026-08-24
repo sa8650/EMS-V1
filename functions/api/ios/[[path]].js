@@ -41,6 +41,10 @@ function payToRow(p,projectMap,partnerMap){
   return {...p,partner_name:pr.name||'—',partner_code:pr.partner_code||'',project_name:pg.name||'—'};
 }
 
+const PROOF_TYPES=['image/png','image/jpeg','image/webp','image/gif','application/pdf','text/plain','application/msword','application/vnd.openxmlformats-officedocument.wordprocessingml.document','application/vnd.ms-excel','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'];
+const PROOF_EXT=['png','jpg','jpeg','webp','gif','pdf','txt','doc','docx','xls','xlsx'];
+const acctStr=a=>(Array.isArray(a)&&a.length?a.map(x=>`${x.label||'Account'}: ${x.url||''}`).join(' | '):'(none)');
+
 export async function onRequest(context){
   const {request,env,params}=context, path=(params.path||[]).join('/'), method=request.method;
   try{
@@ -88,6 +92,17 @@ export async function onRequest(context){
       if(!me.login_access)return fail('Login access is disabled for this partner account.',403);
     }
 
+    if(path.startsWith('contributions/')&&path.endsWith('/proof')&&method==='GET'){
+      const id=path.split('/')[1];
+      let [c]=await db(env,`contributions?id=eq.${id}&select=partner_id,proof_url,proof_name,proof_type`);
+      if(!c||!c.proof_url)return fail('Proof not found.',404);
+      if(s.role!=='admin'&&s.id!==c.partner_id)return fail('Permission denied.',403);
+      if(!env.IOS_PROOF)return fail('Proof storage is not configured.',500);
+      const obj=await env.IOS_PROOF.get(c.proof_url);
+      if(!obj)return fail('Proof file missing from storage.',404);
+      return new Response(obj.body,{headers:{'content-type':obj.httpMetadata?.contentType||c.proof_type||'application/octet-stream','content-disposition':`inline; filename="${c.proof_name||'proof'}"`,'cache-control':'private, no-store'}});
+    }
+
     /* ---------- PARTNER (agent) SELF-SERVICE ---------- */
     if(s.role==='partner'){
       if(path==='me/profile'&&method==='GET'){
@@ -99,6 +114,28 @@ export async function onRequest(context){
         if(!b.password||String(b.password).length<6)return fail('New password must be at least 6 characters.');
         await db(env,`partners?id=eq.${s.id}`,{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify({password_hash:await hash(String(b.password)),updated_at:new Date().toISOString()})});
         return json({ok:true});
+      }
+      if(path==='me/profile'&&method==='POST'){
+        let b=await body(request),email=String(b.email||'').trim().toLowerCase();
+        if(!b.name||!email||!b.phone)return fail('Name, email and phone are required.');
+        if(b.password&&String(b.password).length<6)return fail('Password must be at least 6 characters.');
+        let dup=await db(env,`partners?email=eq.${encodeURIComponent(email)}&select=id`);
+        if(dup.length&&dup[0].id!==s.id)return fail('A partner with this email already exists.',409);
+        const accounts=cleanAccounts(b.accounts);
+        if(accounts.length>5)return fail('Maximum 5 account URLs.');
+        const [old]=await db(env,`partners?id=eq.${s.id}&select=*`);
+        if(!old)return fail('Partner not found.',404);
+        let patch={name:String(b.name).slice(0,120),email,phone:String(b.phone).slice(0,40),accounts,updated_at:new Date().toISOString()};
+        if(b.password)patch.password_hash=await hash(String(b.password));
+        const [out]=await db(env,`partners?id=eq.${s.id}`,{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify(patch)});
+        const logs=[];
+        if(old.name!==patch.name)logs.push({field:'Name',old_value:String(old.name||''),new_value:patch.name});
+        if((old.email||'')!==patch.email)logs.push({field:'Email',old_value:String(old.email||''),new_value:patch.email});
+        if(String(old.phone||'')!==patch.phone)logs.push({field:'Phone number',old_value:String(old.phone||''),new_value:patch.phone});
+        if(JSON.stringify(old.accounts||[])!==JSON.stringify(accounts))logs.push({field:'Social accounts',old_value:acctStr(old.accounts),new_value:acctStr(accounts)});
+        if(b.password)logs.push({field:'Password',old_value:'••••••',new_value:'••••••'});
+        await Promise.all(logs.map(L=>db(env,'partner_logs',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({partner_id:s.id,field:L.field,old_value:L.old_value,new_value:L.new_value})})));
+        return json(publicPartner(out));
       }
       if(path==='me/overview'&&method==='GET'){
         let [allocs,pays,projects,allAllocs,allPays]=await Promise.all([
@@ -123,6 +160,32 @@ export async function onRequest(context){
           payments:pays.map(p=>payToRow(p,projectMap,{[s.id]:{name:'',partner_code:''}})),
           performance:{projects:allocs.length,assigned,acquired,pct:assigned>0?Math.round(acquired/assigned*100):0,rank:rank||null,total:ranked.length}
         });
+      }
+      if(path==='contributions/mine'&&method==='GET'){
+        let [rows,projects]=await Promise.all([
+          db(env,`contributions?partner_id=eq.${s.id}&select=*&order=created_at.desc&limit=500`),
+          db(env,'projects?select=id,name')]);
+        const pm=Object.fromEntries(projects.map(x=>[x.id,x.name]));
+        return json(rows.map(c=>({...c,project_name:pm[c.project_id]||'—'})));
+      }
+      if(path==='contributions'&&method==='POST'){
+        if(!env.IOS_PROOF)return fail('Proof storage is not configured. Add the IOS_PROOF R2 bucket binding.',500);
+        let form;try{form=await request.formData()}catch{return fail('Invalid form submission.')}
+        const projectId=String(form.get('project_id')||''),acquired=Math.round(num(form.get('acquired'))),note=String(form.get('note')||'').slice(0,500);
+        const file=form.get('file');
+        if(!projectId)return fail('Select a project.');
+        if(!(acquired>0))return fail('Today acquired must be a number greater than zero.');
+        if(!file||typeof file==='string'||!file.size)return fail('Proof of acquisition (image / file / document) is required.');
+        if(file.size>10*1024*1024)return fail('Proof file must be 10 MB or smaller.');
+        const ext=String(file.name||'').split('.').pop().toLowerCase();
+        if(!PROOF_TYPES.includes(file.type)&&!PROOF_EXT.includes(ext))return fail('Unsupported proof file type. Use an image, PDF, document or spreadsheet.');
+        let [alloc]=await db(env,`allocations?project_id=eq.${projectId}&partner_id=eq.${s.id}&select=id`);
+        if(!alloc)return fail('You have no allocation for the selected project.');
+        const id=crypto.randomUUID();
+        const key=`proof/${s.id}/${id}/${String(file.name||'proof').replace(/[^\w.\- ]+/g,'_').slice(0,120)}`;
+        await env.IOS_PROOF.put(key,await file.arrayBuffer(),{httpMetadata:{contentType:file.type||'application/octet-stream'}});
+        const [out]=await db(env,'contributions',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({id,partner_id:s.id,project_id:projectId,allocation_id:alloc.id,acquired,note:note||null,proof_url:key,proof_name:String(file.name||'proof').slice(0,200),proof_type:file.type||null,proof_size:file.size,status:'pending'})});
+        return json(out,201);
       }
       return fail('Not found.',404);
     }
@@ -345,6 +408,39 @@ export async function onRequest(context){
         {partner_id:P(2),project_id:Pr(2),amount:1000,method:'Nagad',transaction_id:'TX-1004',status:'pending',payment_date:'2026-08-27'}];
       for(const p of pays)await db(env,'payments',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(p)});
       return json({ok:true,partners:partners.length,projects:projects.length,allocations:allocs.length,payments:pays.length,partnerPassword:'demo123'});
+    }
+
+    if(path==='contributions'&&method==='GET'){
+      let [rows,partners,projects]=await Promise.all([
+        db(env,'contributions?select=*&order=created_at.desc&limit=1000'),
+        db(env,'partners?select=id,name,partner_code'),
+        db(env,'projects?select=id,name')]);
+      const pm=Object.fromEntries(projects.map(x=>[x.id,x.name])),sm=Object.fromEntries(partners.map(x=>[x.id,x]));
+      return json(rows.map(c=>({...c,partner_name:sm[c.partner_id]?.name||'—',partner_code:sm[c.partner_id]?.partner_code||'',project_name:pm[c.project_id]||'—'})));
+    }
+    if(path.startsWith('contributions/')&&method==='PATCH'){
+      const id=path.split('/')[1];
+      let [c]=await db(env,`contributions?id=eq.${id}&select=*`);
+      if(!c)return fail('Contribution not found.',404);
+      if(c.status!=='pending')return fail('This contribution request was already '+c.status+'.',409);
+      let b=await body(request),action=String(b.action||'');
+      if(!['accept','reject'].includes(action))return fail('action must be accept or reject.');
+      if(action==='accept'){
+        let [alloc]=await db(env,`allocations?project_id=eq.${c.project_id}&partner_id=eq.${c.partner_id}&select=*`);
+        if(!alloc)return fail('The allocation for this contribution no longer exists.',400);
+        await db(env,`allocations?id=eq.${alloc.id}`,{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify({acquired_users:num(alloc.acquired_users)+c.acquired,updated_at:new Date().toISOString()})});
+      }
+      const [out]=await db(env,`contributions?id=eq.${id}`,{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify({status:action==='accept'?'accepted':'rejected',reviewed_at:new Date().toISOString(),reviewed_by:s.id,review_note:b.note?String(b.note).slice(0,500):null,updated_at:new Date().toISOString()})});
+      return json(out);
+    }
+
+    if(/^partners\/[^/]+\/logs$/.test(path)&&method==='GET'){
+      const id=path.split('/')[1];
+      let [logs,partner]=await Promise.all([
+        db(env,`partner_logs?partner_id=eq.${id}&select=*&order=created_at.desc&limit=200`),
+        db(env,`partners?id=eq.${id}&select=*`)]);
+      if(!partner.length)return fail('Partner not found.',404);
+      return json({partner:publicPartner(partner[0]),logs});
     }
 
     return fail('Not found.',404);
