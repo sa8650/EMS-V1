@@ -443,6 +443,7 @@ export async function onRequest(context){
       return json({partner:publicPartner(partner[0]),logs});
     }
 
+     
     return fail('Not found.',404);
   }catch(e){return fail(e.message||'Unexpected server error.',500)}
 }
