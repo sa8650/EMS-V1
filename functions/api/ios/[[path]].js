@@ -173,16 +173,17 @@ export async function onRequest(context){
         return json(out);
       }
       if(path==='me/overview'&&method==='GET'){
-        let [allocs,pays,projects,allAllocs,allPays]=await Promise.all([
+        let [allocs,pays,projects,allAllocs,myWithdrawals]=await Promise.all([
           db(env,`allocations?partner_id=eq.${s.id}&select=*&order=created_at.desc`),
           db(env,`payments?partner_id=eq.${s.id}&select=*&order=payment_date.desc,created_at.desc`),
           db(env,'projects?select=*'),
           db(env,'allocations?select=partner_id,assigned_target,acquired_users'),
-          db(env,'payments?select=partner_id,amount,status')]);
+          db(env,`withdrawals?partner_id=eq.${s.id}&select=*&order=created_at.desc`)]);
         const projectMap=Object.fromEntries(projects.map(x=>[x.id,x]));
         const incomeSum=allocs.reduce((a,x)=>a+num(x.commission),0);
-        const paidSum=allPays.filter(p=>p.partner_id===s.id&&p.status==='paid').reduce((a,p)=>a+num(p.amount),0);
-        const stats={projects:new Set(allocs.map(a=>a.project_id)).size,acquired:allocs.reduce((a,x)=>a+num(x.acquired_users),0),income:Math.round(incomeSum*100)/100,paid:Math.round(paidSum*100)/100,balance:Math.round((incomeSum-paidSum)*100)/100};
+        const wdAccepted=myWithdrawals.filter(w=>w.status==='accepted').reduce((a,w)=>a+num(w.amount),0);
+        const wdPending=myWithdrawals.filter(w=>w.status==='pending').reduce((a,w)=>a+num(w.amount),0);
+        const stats={projects:new Set(allocs.map(a=>a.project_id)).size,acquired:allocs.reduce((a,x)=>a+num(x.acquired_users),0),income:Math.round(incomeSum*100)/100,paid:Math.round(wdAccepted*100)/100,balance:Math.round((incomeSum-wdAccepted-wdPending)*100)/100};
         const assigned=allocs.reduce((a,x)=>a+num(x.assigned_target),0),acquired=allocs.reduce((a,x)=>a+num(x.acquired_users),0);
         const byPartner={};
         for(const a of allAllocs){byPartner[a.partner_id]??={assigned:0,acquired:0};byPartner[a.partner_id].assigned+=num(a.assigned_target);byPartner[a.partner_id].acquired+=num(a.acquired_users);}
@@ -191,6 +192,7 @@ export async function onRequest(context){
         return json({
           profile:null,
           stats,
+          withdrawals:myWithdrawals,
           projects:allocs.map(a=>({id:a.id,project:projectMap[a.project_id]||null,assigned_target:a.assigned_target,acquired_users:a.acquired_users,commission:a.commission,status:a.status,note:a.note,pct:num(a.assigned_target)>0?Math.round(num(a.acquired_users)/num(a.assigned_target)*100):0})),
           payments:pays.map(p=>payToRow(p,projectMap,{[s.id]:{name:'',partner_code:''}})),
           performance:{projects:allocs.length,assigned,acquired,pct:assigned>0?Math.round(acquired/assigned*100):0,rank:rank||null,total:ranked.length}
@@ -256,6 +258,25 @@ export async function onRequest(context){
         const [out]=await db(env,'helpdesk_messages',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({partner_id:s.id,sender_type:'agent',sender_id:s.id,body:text.slice(0,2000),read_by_agent:true})});
         return json(out,201);
       }
+      if(path==='withdrawals'&&method==='GET'){
+        return json(await db(env,`withdrawals?partner_id=eq.${s.id}&select=*&order=created_at.desc`));
+      }
+      if(path==='withdrawals'&&method==='POST'){
+        let b=await body(request),amount=num(b.amount);
+        if(amount<=0)return fail('Withdrawal amount must be greater than zero.');
+        let [pm]=await db(env,`payment_methods?id=eq.${String(b.payment_method_id||'')}&partner_id=eq.${s.id}&select=*`);
+        if(!pm)return fail('Select one of your saved payment methods.');
+        let [allocs,wd]=await Promise.all([
+          db(env,`allocations?partner_id=eq.${s.id}&select=commission`),
+          db(env,`withdrawals?partner_id=eq.${s.id}&select=amount,status`)]);
+        const income=allocs.reduce((a,x)=>a+num(x.commission),0);
+        const accepted=wd.filter(w=>w.status==='accepted').reduce((a,w)=>a+num(w.amount),0);
+        const pending=wd.filter(w=>w.status==='pending').reduce((a,w)=>a+num(w.amount),0);
+        const available=Math.round((income-accepted-pending)*100)/100;
+        if(amount>available)return fail(`Withdrawal amount cannot exceed your available balance (${available.toFixed(2)}).`,400);
+        const [out]=await db(env,'withdrawals',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({partner_id:s.id,payment_method_id:pm.id,method:pm.method,account_type:pm.account_type||null,account_number:pm.account_number||null,wallet_address:pm.wallet_address||null,amount:Math.round(amount*100)/100,status:'pending'})});
+        return json(out,201);
+      }
       return fail('Not found.',404);
     }
 
@@ -270,7 +291,9 @@ export async function onRequest(context){
       const projectMap=Object.fromEntries(projects.map(x=>[x.id,x])),partnerMap=Object.fromEntries(partners.map(x=>[x.id,x]));
       let income=0,assigned=0,acquired=0;
       for(const a of allocs){income+=num(a.commission);assigned+=num(a.assigned_target);acquired+=num(a.acquired_users);}
-      let paid=pays.filter(p=>p.status==='paid').reduce((a,p)=>a+num(p.amount),0);
+      let withdrawals=await db(env,'withdrawals?select=amount,status');
+      const wdPaid=withdrawals.filter(w=>w.status==='accepted').reduce((a,w)=>a+num(w.amount),0);
+      const wdLocked=withdrawals.filter(w=>w.status==='pending').reduce((a,w)=>a+num(w.amount),0);
       return json({
         kpis:{
           totalPartners:partners.length,
@@ -278,8 +301,8 @@ export async function onRequest(context){
           assignedTarget:assigned,
           acquiredUsers:acquired,
           totalIncome:Math.round(income*100)/100,
-          totalPaid:Math.round(paid*100)/100,
-          remainingBalance:Math.round((income-paid)*100)/100,
+          totalPaid:Math.round(wdPaid*100)/100,
+          remainingBalance:Math.round((income-wdPaid-wdLocked)*100)/100,
           overallPerformance:assigned>0?Math.round(acquired/assigned*100):0
         },
         contributions:allocs.map(a=>allocToRow(a,projectMap,partnerMap)),
@@ -289,19 +312,21 @@ export async function onRequest(context){
     }
 
     if(path==='partners'&&method==='GET'){
-      let [partners,projects,allocs,pays]=await Promise.all([
+      let [partners,projects,allocs,withdrawals]=await Promise.all([
         db(env,'partners?select=*&order=created_at.desc'),
         db(env,'projects?select=id,name'),
         db(env,'allocations?select=partner_id,project_id,assigned_target,acquired_users,commission'),
-        db(env,'payments?select=partner_id,amount,status')]);
+        db(env,'withdrawals?select=partner_id,amount,status')]);
       const projectMap=Object.fromEntries(projects.map(x=>[x.id,x.name]));
       return json(partners.map(p=>{
         const rows=allocs.filter(a=>a.partner_id===p.id);
         const income=rows.reduce((a,x)=>a+num(x.commission),0);
-        const paid=pays.filter(x=>x.partner_id===p.id&&x.status==='paid').reduce((a,x)=>a+num(x.amount),0);
+        const wd=withdrawals.filter(x=>x.partner_id===p.id);
+        const paid=wd.filter(x=>x.status==='accepted').reduce((a,x)=>a+num(x.amount),0);
+        const locked=wd.filter(x=>x.status==='pending').reduce((a,x)=>a+num(x.amount),0);
         return {...publicPartner(p),projects:rows.length,project_names:[...new Set(rows.map(r=>projectMap[r.project_id]))].filter(Boolean),
           acquired_users:rows.reduce((a,x)=>a+num(x.acquired_users),0),
-          income:Math.round(income*100)/100,paid:Math.round(paid*100)/100,balance:Math.round((income-paid)*100)/100};
+          income:Math.round(income*100)/100,paid:Math.round(paid*100)/100,balance:Math.round((income-paid-locked)*100)/100};
       }));
     }
     if(path==='partners'&&method==='POST'){
@@ -410,8 +435,8 @@ export async function onRequest(context){
       let [alloc]=await db(env,`allocations?project_id=eq.${b.project_id}&partner_id=eq.${b.partner_id}&select=*`);
       if(!alloc)return fail('This agent has no allocation for the selected project.',400);
       const [out]=await db(env,'payments',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({partner_id:b.partner_id,project_id:b.project_id,payment_date:b.payment_date||new Date().toISOString().slice(0,10),amount:Math.round(amount*100)/100,status:b.status})});
-      // The payment amount becomes commission for that project allocation.
-      await db(env,`allocations?id=eq.${alloc.id}`,{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify({commission:Math.round((num(alloc.commission)+amount)*100)/100,updated_at:new Date().toISOString()})});
+      // Commission is only added when the payment is PAID (scheduled/pending add nothing).
+      if(b.status==='paid')await db(env,`allocations?id=eq.${alloc.id}`,{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify({commission:Math.round((num(alloc.commission)+amount)*100)/100,updated_at:new Date().toISOString()})});
       return json(out,201);
     }
     if(path.startsWith('payments/')&&(method==='PATCH'||method==='DELETE')){
@@ -419,8 +444,10 @@ export async function onRequest(context){
       let [existing]=await db(env,`payments?id=eq.${id}&select=*`);
       if(!existing)return fail('Payment not found.',404);
       if(method==='DELETE'){
-        let [alloc]=await db(env,`allocations?project_id=eq.${existing.project_id}&partner_id=eq.${existing.partner_id}&select=*`);
-        if(alloc)await db(env,`allocations?id=eq.${alloc.id}`,{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify({commission:Math.max(0,Math.round((num(alloc.commission)-num(existing.amount))*100)/100),updated_at:new Date().toISOString()})});
+        if(existing.status==='paid'){
+          let [alloc]=await db(env,`allocations?project_id=eq.${existing.project_id}&partner_id=eq.${existing.partner_id}&select=*`);
+          if(alloc)await db(env,`allocations?id=eq.${alloc.id}`,{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify({commission:Math.max(0,Math.round((num(alloc.commission)-num(existing.amount))*100)/100),updated_at:new Date().toISOString()})});
+        }
         await db(env,`payments?id=eq.${id}`,{method:'DELETE'});
         return json({ok:true});
       }
@@ -428,7 +455,12 @@ export async function onRequest(context){
       if(b.status!==undefined){
         if(!PAYMENT_STATUSES.includes(b.status))return fail('Invalid payment status.');
         if(b.status!=='paid'&&existing.status==='paid')return fail('A paid payment cannot be reverted. Delete it instead.',400);
+        const nowPaid=b.status==='paid'&&existing.status!=='paid';
         patch.status=b.status;
+        if(nowPaid){
+          let [alloc]=await db(env,`allocations?project_id=eq.${existing.project_id}&partner_id=eq.${existing.partner_id}&select=*`);
+          if(alloc)await db(env,`allocations?id=eq.${alloc.id}`,{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify({commission:Math.round((num(alloc.commission)+num(existing.amount))*100)/100,updated_at:new Date().toISOString()})});
+        }
       }
       let [out]=await db(env,`payments?id=eq.${id}`,{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify(patch)});
       return json(out);
@@ -476,6 +508,9 @@ export async function onRequest(context){
         {partner_id:P(3),project_id:Pr(0),amount:1800,method:'Bank transfer',transaction_id:'TX-1003',status:'paid',payment_date:'2026-08-18'},
         {partner_id:P(2),project_id:Pr(2),amount:1000,method:'Nagad',transaction_id:'TX-1004',status:'pending',payment_date:'2026-08-27'}];
       for(const p of pays)await db(env,'payments',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(p)});
+      let wds=[{partner_id:P(0),method:'bkash',account_type:'agent',account_number:'01700000001',amount:700,provider_number:'01811111111',trx:'TRX-W101',status:'accepted'},
+        {partner_id:P(2),method:'nagad',account_type:'personal',account_number:'01800000002',amount:500,status:'pending'}];
+      for(const w of wds)await db(env,'withdrawals',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(w)});
       return json({ok:true,partners:partners.length,projects:projects.length,allocations:allocs.length,payments:pays.length,partnerPassword:'demo123'});
     }
 
@@ -568,6 +603,33 @@ export async function onRequest(context){
       if(!partner)return fail('Agent not found.',404);
       const [out]=await db(env,'helpdesk_messages',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({partner_id:pid,sender_type:'admin',sender_id:s.id,body:text.slice(0,2000),read_by_admin:true})});
       return json(out,201);
+    }
+
+    if(path==='withdrawals'&&method==='GET'){
+      let [rows,partners]=await Promise.all([
+        db(env,'withdrawals?select=*&order=created_at.desc&limit=1000'),
+        db(env,'partners?select=id,name,partner_code')]);
+      const sm=Object.fromEntries(partners.map(x=>[x.id,x]));
+      return json(rows.map(w=>({...w,partner_name:sm[w.partner_id]?.name||'—',partner_code:sm[w.partner_id]?.partner_code||''})));
+    }
+    if(path.startsWith('withdrawals/')&&method==='PATCH'){
+      let id=path.split('/')[1];
+      let [w]=await db(env,`withdrawals?id=eq.${id}&select=*`);
+      if(!w)return fail('Withdrawal request not found.',404);
+      if(w.status!=='pending')return fail('This withdrawal was already '+w.status+'.',409);
+      let b=await body(request),action=String(b.action||'');
+      if(action==='accept'){
+        const provider=String(b.provider_number||'').trim(),trx=String(b.trx||'').trim();
+        if(!provider)return fail('Provider number is required.',400);
+        if(!trx)return fail('Transaction ID (trx) is required.',400);
+        const [out]=await db(env,`withdrawals?id=eq.${id}`,{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify({status:'accepted',provider_number:provider.slice(0,60),trx:trx.slice(0,100),updated_at:new Date().toISOString()})});
+        return json(out);
+      }
+      if(action==='reject'){
+        const [out]=await db(env,`withdrawals?id=eq.${id}`,{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify({status:'rejected',reject_reason:b.reason?String(b.reason).slice(0,500):null,updated_at:new Date().toISOString()})});
+        return json(out);
+      }
+      return fail('action must be accept or reject.');
     }
 
     return fail('Not found.',404);
