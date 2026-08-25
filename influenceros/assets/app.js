@@ -57,6 +57,8 @@ const CONTRIB_STATUS={pending:['Pending','yellow'],accepted:['Accepted','green']
 const WD_STATUS={pending:['Pending','yellow'],accepted:['Accepted','green'],rejected:['Rejected','red']};
 const TEAM_TYPE_LABELS={youtuber:'YouTuber',facebook:'Facebook',tiktoker:'TikToker',instagram:'Instagram',telegram:'Telegram',marketing_agent:'Marketing Agent',agency:'Agency'};
 const TEAM_STATUS={active:['Active','green'],inactive:['Inactive','gray']};
+const CATEGORIES=['views','clicks','sales','users','shares','reach','leads','profit','installs'];
+const catLabel=c=>String(c||'users').charAt(0).toUpperCase()+String(c||'users').slice(1);
 const pill=(map,key)=>{const m=map[key]||[String(key),'gray'];return `<span class="pill ${m[1]}">${m[0]}</span>`};
 const projPill=s=>s==='active'?'<span class="pill green">Active</span>':'<span class="pill gray">Inactive</span>';
 
@@ -513,7 +515,7 @@ function paymentModal(partners,allocations,payments){
     </div>
     <div class="section-head" style="margin-top:10px"><h2>Projects</h2><span class="muted">Target · acquired · commission (auto)</span></div>
     ${myAllocs.length?myAllocs.map(a=>`<div class="target-row">
-      <b>${esc(a.project_name)}</b>
+      <b>${esc(a.project_name)} <span class="pill blue">${catLabel(a.category)}</span></b>
       <span>Target ${num(a.assigned_target).toLocaleString()}</span>
       <span>Acquired ${num(a.acquired_users).toLocaleString()}</span>
       <span class="right"><b>${money(a.commission)}</b></span>
@@ -524,7 +526,7 @@ function paymentModal(partners,allocations,payments){
     <div class="payform">
       <div class="section-head" style="margin:0 0 10px"><h2>New payment</h2><span class="muted">Amount is added to the selected project's commission</span></div>
       <div class="field-row">
-        <div class="field"><label>Project</label><select id="pkProject"><option value="">Select project…</option>${myAllocs.map(a=>`<option value="${a.project_id}">${esc(a.project_name)} · ${money(a.commission)} commission</option>`).join('')}</select></div>
+        <div class="field"><label>Project</label><select id="pkProject"><option value="">Select project…</option>${myAllocs.map(a=>`<option value="${a.id}">${esc(a.project_name)} · ${catLabel(a.category)} · ${money(a.commission)} commission</option>`).join('')}</select></div>
         <div class="field"><label>Status</label><select id="pkStatus"><option value="pending">Pending</option><option value="scheduled">Scheduled</option><option value="paid">Paid</option></select></div>
       </div>
       <div class="field"><label>Payment amount ($)</label><input id="pkAmount" type="number" min="0" step="10" placeholder="0"></div>
@@ -538,7 +540,7 @@ function paymentModal(partners,allocations,payments){
       if(amount<=0)return toast('Enter a payment amount.');
       go.disabled=true;go.textContent='Saving…';
       try{
-        await mutate('payments',{method:'POST',body:JSON.stringify({project_id:projectId,partner_id:selected,amount,status})});
+        await mutate('payments',{method:'POST',body:JSON.stringify({allocation_id:projectId,partner_id:selected,amount,status})});
         ov.remove();toast('Payment saved — commission updated.');renderAdmin();
       }catch(e){toast(e.message);go.disabled=false;go.textContent='Payment'}
     };
@@ -563,9 +565,10 @@ function renderAllocationsView(main,allocs,projects,partners){
   <div class="top"><div class="title"><h1>Allocations</h1><p>Assign project targets to agents. Acquired users &amp; commission fill automatically from contributions and payments.</p></div>
   <div class="actions"><button class="btn dark" id="addAlloc">+ Add allocation</button></div></div>
   <div class="section-box"><div class="toolbar"><h2>Allocation table</h2><div class="filters"><input id="aq" placeholder="Search project or agent…" value="${esc(aFilterQ)}"></div></div>
-  <div style="overflow:auto"><table class="view-table"><thead><tr><th>Project</th><th>Agent</th><th>Assigned target</th><th>Users acquired <small>(auto)</small></th><th>Commission <small>(auto)</small></th><th>Progress</th><th>Status</th><th></th></tr></thead>
+  <div style="overflow:auto"><table class="view-table"><thead><tr><th>Project</th><th>Category</th><th>Agent</th><th>Assigned target</th><th>Users acquired <small>(auto)</small></th><th>Commission <small>(auto)</small></th><th>Progress</th><th>Status</th><th></th></tr></thead>
   <tbody>${list.length?list.map(a=>`<tr>
     <td>${esc(a.project_name)}</td>
+    <td><span class="pill blue">${catLabel(a.category)}</span></td>
     <td><div class="partner"><div class="avatar">${esc(initials(a.partner_name))}</div><div><b>${esc(a.partner_name)}</b><small>#${esc(a.partner_code)}</small></div></div></td>
     <td>${num(a.assigned_target).toLocaleString()}</td><td><b>${num(a.acquired_users).toLocaleString()}</b></td><td>${money(a.commission)}</td>
     <td style="min-width:120px"><div style="font-size:10px;margin-bottom:4px">${pct(num(a.acquired_users),num(a.assigned_target))}%</div><div class="progress"><i style="width:${pct(num(a.acquired_users),num(a.assigned_target))}%"></i></div></td>
@@ -584,17 +587,18 @@ function allocationModal(a,projects,agreePartners){
     <p>${editable?'Only the assigned target, status and note can be changed.':'Link an agreeing agent to a project with a target.'} Acquired users and commission fill <b>automatically</b> from contributions and payments.</p>
     <div class="field"><label>Project</label><select id="lProject" ${editable?'disabled':''}><option value="">Select project…</option>${projects.map(p=>`<option value="${p.id}" ${a?.project_id===p.id?'selected':''}>${esc(p.name)}${p.status!=='active'?' (inactive)':''}</option>`).join('')}</select></div>
     <div class="field"><label>Agent <small>${editable?'':'(only agents with status “Agree” are listed)'}</small></label><select id="lPartner" ${editable?'disabled':''}><option value="">Select agent…</option>${agreePartners.map(p=>`<option value="${p.id}" ${a?.partner_id===p.id?'selected':''}>${esc(p.name)} · #${esc(p.partner_code)}</option>`).join('')}</select></div>
+    <div class="field"><label>Category <small>(what the target counts)</small></label><select id="lCategory" ${editable?'disabled':''}>${CATEGORIES.map(c=>`<option value="${c}" ${a?.category===c?'selected':''}>${catLabel(c)}</option>`).join('')}</select></div>
     ${editable?`<div class="kv" style="margin-bottom:12px"><span>Users acquired (auto)</span><b>${num(a.acquired_users).toLocaleString()}</b><span>Commission (auto)</span><b>${money(a.commission)}</b></div>`:''}
     <div class="field"><label>Assigned target (users)</label><input id="lTarget" type="number" min="0" value="${num(a?.assigned_target)}"></div>
     <div class="field"><label>Status</label><select id="lStatus">${Object.entries(ALLOC_STATUS).map(([k,v])=>`<option value="${k}" ${a?.status===k?'selected':''}>${v[0]}</option>`).join('')}</select></div>
     <div class="field"><label>Note</label><input id="lNote" value="${esc(a?.note||'')}"></div>
     <div class="modal-actions"><button class="btn" data-close>Cancel</button><button class="btn dark" id="lSave">${editable?'Save changes':'Add allocation'}</button></div>`);
   ov.querySelector('#lSave').onclick=async()=>{
-    const projectId=ov.querySelector('#lProject').value,partnerId=ov.querySelector('#lPartner').value;
+    const projectId=ov.querySelector('#lProject').value,partnerId=ov.querySelector('#lPartner').value,category=ov.querySelector('#lCategory').value;
     const payload={assigned_target:Math.round(num(ov.querySelector('#lTarget').value)),status:ov.querySelector('#lStatus').value,note:ov.querySelector('#lNote').value};
     try{
       if(editable)await mutate('allocations/'+a.id,{method:'PATCH',body:JSON.stringify(payload)});
-      else await mutate('allocations',{method:'POST',body:JSON.stringify({project_id:projectId,partner_id:partnerId,...payload})});
+      else await mutate('allocations',{method:'POST',body:JSON.stringify({project_id:projectId,partner_id:partnerId,category,...payload})});
       ov.remove();toast(editable?'Allocation updated.':'Allocation added.');renderAdmin();
     }catch(e){toast(e.message)}
   };
@@ -617,18 +621,18 @@ function renderAContribute(main,rows){
     <div class="card stat"><div><div class="label">Rejected</div><div class="value">${count('rejected')}</div></div></div>
   </div>
   <div class="section-box"><div class="toolbar"><h2>All contribution requests</h2><span class="muted">Every agent · newest first</span></div>
-  <div style="overflow:auto"><table class="view-table"><thead><tr><th>ID</th><th>Date &amp; time</th><th>Agent</th><th>Project</th><th>Acquired</th><th>Proof</th><th>Note</th><th>Status</th><th>Review</th><th></th></tr></thead>
+  <div style="overflow:auto"><table class="view-table"><thead><tr><th>ID</th><th>Date &amp; time</th><th>Agent</th><th>Project</th><th>Category</th><th>Acquired</th><th>Proof</th><th>Note</th><th>Status</th><th>Review</th><th></th></tr></thead>
   <tbody>${rows.length?rows.map(c=>`<tr>
     <td><b>${esc(c.code||String(c.id).slice(0,6))}</b></td>
     <td>${fmtDT(c.created_at)}</td>
     <td><div class="partner"><div class="avatar">${esc(initials(c.partner_name))}</div><div><b>${esc(c.partner_name)}</b><small>#${esc(c.partner_code)}</small></div></div></td>
-    <td>${esc(c.project_name)}</td><td><b>+${num(c.acquired).toLocaleString()}</b></td>
+    <td>${esc(c.project_name)}</td><td><span class="pill blue">${catLabel(c.category)}</span></td><td><b>+${num(c.acquired).toLocaleString()}</b></td>
     <td>${filesCell(c.files)}</td>
     <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(c.note||'')}">${esc(c.note||'—')}</td>
     <td>${pill(CONTRIB_STATUS,c.status)}</td>
     <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(c.review_note||'')}">${c.reviewed_at?esc(c.review_note||'—'):'—'}</td>
     <td class="actions-cell">${c.status==='pending'?`<button class="btn small" data-accept="${c.id}" data-n="${num(c.acquired)}">Accept</button><button class="btn small danger" data-reject="${c.id}">Reject</button>`:''}</td>
-  </tr>`).join(''):'<tr><td colspan="9" class="empty">No contribution requests yet.</td></tr>'}</tbody></table></div></div>`;
+  </tr>`).join(''):'<tr><td colspan="10" class="empty">No contribution requests yet.</td></tr>'}</tbody></table></div></div>`;
   main.querySelectorAll('[data-files]').forEach(b=>b.onclick=()=>filesModal(JSON.parse(b.dataset.files)));
   main.querySelectorAll('[data-accept]').forEach(b=>b.onclick=async()=>{
     if(!confirm(`Accept this contribution? ${b.dataset.n} users will be added to the allocation's Users acquired automatically.`))return;
@@ -909,8 +913,8 @@ async function pOverview(main,view){
 function renderPProjects(main,d){
     main.innerHTML=`<div class="top"><div class="title"><h1>My projects</h1><p>Projects allocated to your account.</p></div></div>
     <div class="project-grid">${d.projects.length?d.projects.map(x=>`
-      <div class="project-card"><div class="detail-head"><div><h3>${esc(x.project?.name||'—')}</h3><p>${esc(x.project?.details||'')}</p></div>${projPill(x.project?.status||'active')}</div>
-        <div class="meta"><span>My target</span><b>${num(x.assigned_target).toLocaleString()}</b></div>
+      <div class="project-card"><div class="detail-head"><div><h3>${esc(x.project?.name||'—')}</h3><p>${esc(x.project?.details||'')}</p></div><span class="pill blue">${catLabel(x.category)}</span></div>
+        <div class="meta"><span>My target (${catLabel(x.category).toLowerCase()})</span><b>${num(x.assigned_target).toLocaleString()}</b></div>
         <div class="meta"><span>My acquired</span><b>${num(x.acquired_users).toLocaleString()}</b></div>
         <div class="progress-lg"><i style="width:${Math.min(100,x.pct)}%"></i></div>
         <div class="meta"><span>${x.pct}% achieved</span><span>${money(x.commission)} commission</span></div>
@@ -1107,17 +1111,18 @@ function renderPContribute(main,rows){
   <div class="top"><div class="title"><h1>Contribute</h1><p>Submit the users you acquired today with proof — the admin reviews every request.</p></div>
   <div class="actions"><button class="btn dark" id="addContrib">+ Add contribution</button></div></div>
   <div class="section-box"><div class="toolbar"><h2>My contribution requests</h2><span class="muted">Newest first</span></div>
-  <div style="overflow:auto"><table class="view-table"><thead><tr><th>ID</th><th>Date &amp; time</th><th>Project</th><th>Acquired</th><th>Proof</th><th>Note</th><th>Status</th><th>Admin review</th></tr></thead>
+  <div style="overflow:auto"><table class="view-table"><thead><tr><th>ID</th><th>Date &amp; time</th><th>Project</th><th>Category</th><th>Acquired</th><th>Proof</th><th>Note</th><th>Status</th><th>Admin review</th></tr></thead>
   <tbody>${rows.length?rows.map(c=>`<tr>
     <td><b>${esc(c.code||String(c.id).slice(0,6))}</b></td>
     <td>${fmtDT(c.created_at)}</td>
     <td>${esc(c.project_name)}</td>
+    <td><span class="pill blue">${catLabel(c.category)}</span></td>
     <td><b>+${num(c.acquired).toLocaleString()}</b></td>
     <td>${filesCell(c.files)}</td>
     <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(c.note||'')}">${esc(c.note||'—')}</td>
     <td>${pill(CONTRIB_STATUS,c.status)}</td>
     <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(c.review_note||'')}">${c.reviewed_at?esc(c.review_note||'Reviewed'):'Waiting for review'}</td>
-  </tr>`).join(''):'<tr><td colspan="7" class="empty">No contribution requests yet. Click “+ Add contribution”.</td></tr>'}</tbody></table></div></div>`;
+  </tr>`).join(''):'<tr><td colspan="8" class="empty">No contribution requests yet. Click “+ Add contribution”.</td></tr>'}</tbody></table></div></div>`;
   main.querySelectorAll('[data-files]').forEach(b=>b.onclick=()=>filesModal(JSON.parse(b.dataset.files)));
   $('#addContrib').onclick=contributeModal;
 }
@@ -1125,12 +1130,15 @@ function contributeModal(){
   const ov=viewCache['me/overview'],projects=(ov?.projects||[]).filter(x=>x.project);
   const m=modal(`
     <h2>Add contribution</h2>
-    <p>Request credit for users you acquired today. The admin accepts or rejects each request after checking the proof.</p>
-    <div class="field"><label>Project</label><select id="cProject"><option value="">Select project…</option>${projects.map(x=>`<option value="${x.project.id}">${esc(x.project.name)} · target ${num(x.assigned_target).toLocaleString()}</option>`).join('')}</select></div>
-    <div class="field"><label>Today acquired (users)</label><input id="cAcquired" type="number" min="1" step="1" placeholder="e.g. 120"></div>
+    <p>Request credit for today's results. The admin accepts or rejects each request after checking the proof.</p>
+    <div class="field"><label>Project</label><select id="cProject"><option value="">Select project…</option>${projects.map(x=>`<option value="${x.id}">${esc(x.project.name)} · ${catLabel(x.category)} · target ${num(x.assigned_target).toLocaleString()}</option>`).join('')}</select></div>
+    <div class="field"><label>Today <span id="cCatLabel">acquired</span></label><input id="cAcquired" type="number" min="1" step="1" placeholder="e.g. 120"></div>
     <div class="field"><label>Proof of acquired <small>(up to 10 files · each max 10 MB)</small></label><input id="cFile" type="file" multiple accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt"></div>
     <div class="field"><label>Note <small>(optional)</small></label><input id="cNote" placeholder="Anything the admin should know"></div>
     <div class="modal-actions"><button class="btn" data-close>Cancel</button><button class="btn dark" id="cGo">Send request</button></div>`);
+  const catSel=m.querySelector('#cProject');
+  const syncCat=()=>{const sel=projects.find(x=>x.id===catSel.value);m.querySelector('#cCatLabel').textContent=sel?catLabel(sel.category).toLowerCase():'acquired'};
+  catSel.onchange=syncCat;syncCat();
   m.querySelector('#cGo').onclick=async()=>{
     if(!m.querySelector('#cProject').value)return toast('Select a project.');
     const picked=[...m.querySelector('#cFile').files];
@@ -1138,7 +1146,7 @@ function contributeModal(){
     if(picked.length>10)return toast('Maximum 10 proof files per request.');
     if(picked.some(f=>f.size>10*1024*1024))return toast('Each proof file must be 10 MB or smaller.');
     const fd=new FormData();
-    fd.append('project_id',m.querySelector('#cProject').value);
+    fd.append('allocation_id',m.querySelector('#cProject').value);
     fd.append('acquired',m.querySelector('#cAcquired').value);
     fd.append('note',m.querySelector('#cNote').value);
     picked.forEach(f=>fd.append('file',f));
@@ -1187,4 +1195,3 @@ function boot(){
   landing();
 }
 boot();
-
