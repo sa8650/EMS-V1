@@ -133,7 +133,16 @@ export async function onRequest(context){
         if(old.name!==patch.name)logs.push({field:'Name',old_value:String(old.name||''),new_value:patch.name});
         if((old.email||'')!==patch.email)logs.push({field:'Email',old_value:String(old.email||''),new_value:patch.email});
         if(String(old.phone||'')!==patch.phone)logs.push({field:'Phone number',old_value:String(old.phone||''),new_value:patch.phone});
-        if(JSON.stringify(old.accounts||[])!==JSON.stringify(accounts))logs.push({field:'Social accounts',old_value:acctStr(old.accounts),new_value:acctStr(accounts)});
+        if(JSON.stringify(old.accounts||[])!==JSON.stringify(accounts)){
+          const norm=a=>String(a.label||'Account').trim().toLowerCase();
+          const oldList=old.accounts||[],newList=accounts;
+          const oldMap=new Map(oldList.map(a=>[norm(a),String(a.url||'')])),newMap=new Map(newList.map(a=>[norm(a),String(a.url||'')]));
+          const oldLabel=new Map(oldList.map(a=>[norm(a),a.label||'Account'])),newLabel=new Map(newList.map(a=>[norm(a),a.label||'Account']));
+          const removed=[],added=[],changed=[];
+          for(const [l,u] of oldMap)if(!newMap.has(l))removed.push(`${oldLabel.get(l)}: ${u||'—'}`);
+          for(const [l,u] of newMap){if(!oldMap.has(l))added.push(`${newLabel.get(l)}: ${u||'—'}`);else if(oldMap.get(l)!==u)changed.push(`${newLabel.get(l)}: ${oldMap.get(l)||'—'} → ${u||'—'}`)}
+          logs.push({field:'Social accounts',old_value:removed.length?'Removed:\n'+removed.join('\n'):null,new_value:[...added.map(x=>'+ '+x),...changed.map(x=>'± '+x)].join('\n')||'No visible change'});
+        }
         if(b.password)logs.push({field:'Password',old_value:'••••••',new_value:'••••••'});
         await Promise.all(logs.map(L=>db(env,'partner_logs',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({partner_id:s.id,field:L.field,old_value:L.old_value,new_value:L.new_value})})));
         return json(publicPartner(out));
@@ -257,6 +266,41 @@ export async function onRequest(context){
         if(!text)return fail('Message cannot be empty.');
         const [out]=await db(env,'helpdesk_messages',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({partner_id:s.id,sender_type:'agent',sender_id:s.id,body:text.slice(0,2000),read_by_agent:true})});
         return json(out,201);
+      }
+      const TEAM_TYPES=['youtuber','facebook','tiktoker','instagram','telegram','marketing_agent','agency'];
+      const publicMember=m=>{delete m.password_hash;return m};
+      if(path==='me/team'&&method==='GET'){
+        return json(await db(env,`team_members?partner_id=eq.${s.id}&select=*&order=created_at.asc`));
+      }
+      if(path==='me/team'&&method==='POST'){
+        let b=await body(request),email=String(b.email||'').trim().toLowerCase();
+        if(!b.name||!email||!b.phone)return fail('Name, email and phone are required.');
+        if(!b.password||String(b.password).length<6)return fail('Password must be at least 6 characters.');
+        if(!TEAM_TYPES.includes(b.type))return fail('Invalid team type.');
+        if(!['active','inactive'].includes(b.status))return fail('Invalid team status.');
+        let dup=await db(env,`team_members?email=eq.${encodeURIComponent(email)}&select=id`);
+        if(dup.length)return fail('A team member with this email already exists.',409);
+        let code=null;
+        for(let i2=0;i2<15;i2++){let c=String(crypto.getRandomValues(new Uint32Array(1))[0]%9000+1000);let used=await db(env,`team_members?code=eq.${c}&select=id`);if(!used.length){code=c;break}}
+        if(!code)throw Error('Could not allocate a 4-digit team code. Please retry.');
+        const [out]=await db(env,'team_members',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({partner_id:s.id,code,name:String(b.name).slice(0,120),email,phone:String(b.phone).slice(0,40),type:b.type,accounts:cleanAccounts(b.accounts),password_hash:await hash(String(b.password)),login_access:b.login_access!==false,status:b.status,note:b.note?String(b.note).slice(0,500):null})});
+        return json(publicMember(out),201);
+      }
+      if(path.startsWith('me/team/')&&(method==='PATCH'||method==='DELETE')){
+        const id=path.split('/')[2];
+        let [row]=await db(env,`team_members?id=eq.${id}&partner_id=eq.${s.id}&select=*`);
+        if(!row)return fail('Team member not found.',404);
+        if(method==='DELETE'){await db(env,`team_members?id=eq.${id}`,{method:'DELETE'});return json({ok:true})}
+        let b=await body(request),patch={updated_at:new Date().toISOString()};
+        for(const k of ['name','phone','note'])if(b[k]!==undefined)patch[k]=String(b[k]).slice(0,500);
+        if(b.email!==undefined){let email=String(b.email).trim().toLowerCase();if(!email)return fail('Email cannot be empty.');let dup=await db(env,`team_members?email=eq.${encodeURIComponent(email)}&select=id`);if(dup.length&&dup[0].id!==id)return fail('A team member with this email already exists.',409);patch.email=email;}
+        if(b.type!==undefined){if(!TEAM_TYPES.includes(b.type))return fail('Invalid team type.');patch.type=b.type}
+        if(b.status!==undefined){if(!['active','inactive'].includes(b.status))return fail('Invalid team status.');patch.status=b.status}
+        if(b.login_access!==undefined)patch.login_access=!!b.login_access;
+        if(b.accounts!==undefined)patch.accounts=cleanAccounts(b.accounts);
+        if(b.password)patch.password_hash=await hash(String(b.password));
+        const [out]=await db(env,`team_members?id=eq.${id}`,{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify(patch)});
+        return json(publicMember(out));
       }
       if(path==='withdrawals'&&method==='GET'){
         return json(await db(env,`withdrawals?partner_id=eq.${s.id}&select=*&order=created_at.desc`));
@@ -474,162 +518,6 @@ export async function onRequest(context){
       for(const a of allocs){map[a.partner_id]??={projects:new Set(),assigned:0,acquired:0};map[a.partner_id].projects.add(a.project_id);map[a.partner_id].assigned+=num(a.assigned_target);map[a.partner_id].acquired+=num(a.acquired_users);}
       const rows=partners.map(p=>({id:p.id,name:p.name,partner_code:p.partner_code,type:p.type,projects:(map[p.id]?.projects.size)||0,assigned:(map[p.id]?.assigned)||0,acquired:(map[p.id]?.acquired)||0,pct:(map[p.id]&&map[p.id].assigned>0)?Math.round(map[p.id].acquired/map[p.id].assigned*100):0})).sort((a,b)=>b.pct-a.pct||b.acquired-a.acquired);
       return json(rows.map((r,i)=>({...r,rank:i+1})));
-    }
-
-    if(path==='demo-seed'&&method==='POST'){
-      const PWD=await hash('demo123');
-      const mkPartner=(code,name,email,phone,type,status,note)=>({partner_code:code,name,email,phone,type,status,note,password_hash:PWD,login_access:true,accounts:[]});
-      let partners=[mkPartner('1201','Arif Rahman','arif@demo.ios','+8801710000001','youtuber','agree','Tech reviewer with a large audience.'),
-        mkPartner('1202','Nadia Sultana','nadia@demo.ios','+8801710000002','tiktoker','agree','Summer campaign creator.'),
-        mkPartner('1203','Digital Media BD','hello@digitalmedia.bd','+8801710000003','agency','agree','Agency with 18 creators.'),
-        mkPartner('1204','Shakib Karim','shakib@demo.ios','+8801710000004','facebook','agree','Facebook group admin.'),
-        mkPartner('1205','Trend Makers','team@trendmakers.io','+8801710000005','marketing_agent','waiting','Negotiating terms.'),
-        mkPartner('1206','Mim Akter','mim@demo.ios','+8801710000006','instagram','agree','Lifestyle creator.')];
-      let projects=[{name:'Crypto Exchange Launch',details:'Launch campaign focused on registrations, deposits and social awareness.',budget:18400,note:null,status:'active'},
-        {name:'Summer Creator Campaign',details:'TikTok, Facebook and YouTube creator campaign for summer product adoption.',budget:11250,note:null,status:'active'},
-        {name:'Brand Awareness — Asia',details:'Multi-country awareness campaign with agents and creator agencies.',budget:24800,note:null,status:'active'},
-        {name:'Bangladesh Referral Push',details:'Referral-focused creator project with commission per verified user.',budget:9800,note:null,status:'active'}];
-      for(const t of ['payments','allocations','projects','partners'])await db(env,t,{method:'DELETE',headers:{'Prefer':'return=minimal'}});
-      let savedP=[],savedPr=[];
-      for(const p of partners){let [r]=await db(env,'partners',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(p)});savedP.push(r)}
-      for(const p of projects){let [r]=await db(env,'projects',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(p)});savedPr.push(r)}
-      const P=i=>savedP[i].id,Pr=i=>savedPr[i].id;
-      let allocs=[
-        {project_id:Pr(0),partner_id:P(0),assigned_target:7000,acquired_users:5420,commission:4200,status:'on_target',note:null},
-        {project_id:Pr(2),partner_id:P(0),assigned_target:5000,acquired_users:3000,commission:1800,status:'active',note:null},
-        {project_id:Pr(1),partner_id:P(1),assigned_target:5000,acquired_users:3650,commission:2200,status:'on_target',note:null},
-        {project_id:Pr(2),partner_id:P(2),assigned_target:8000,acquired_users:5100,commission:4200,status:'active',note:null},
-        {project_id:Pr(0),partner_id:P(3),assigned_target:3000,acquired_users:2800,commission:1800,status:'on_target',note:null},
-        {project_id:Pr(3),partner_id:P(5),assigned_target:3500,acquired_users:2710,commission:1600,status:'on_target',note:null}];
-      let savedA=[];
-      for(const a of allocs){let [r]=await db(env,'allocations',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(a)});savedA.push(r)}
-      let pays=[{partner_id:P(0),project_id:Pr(0),amount:1500,method:'Bank transfer',transaction_id:'TX-1001',status:'scheduled',payment_date:'2026-08-25'},
-        {partner_id:P(1),project_id:Pr(1),amount:1500,method:'bKash',transaction_id:'TX-1002',status:'paid',payment_date:'2026-08-20'},
-        {partner_id:P(3),project_id:Pr(0),amount:1800,method:'Bank transfer',transaction_id:'TX-1003',status:'paid',payment_date:'2026-08-18'},
-        {partner_id:P(2),project_id:Pr(2),amount:1000,method:'Nagad',transaction_id:'TX-1004',status:'pending',payment_date:'2026-08-27'}];
-      for(const p of pays)await db(env,'payments',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(p)});
-      let wds=[{partner_id:P(0),method:'bkash',account_type:'agent',account_number:'01700000001',amount:700,provider_number:'01811111111',trx:'TRX-W101',status:'accepted'},
-        {partner_id:P(2),method:'nagad',account_type:'personal',account_number:'01800000002',amount:500,status:'pending'}];
-      for(const w of wds)await db(env,'withdrawals',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(w)});
-      return json({ok:true,partners:partners.length,projects:projects.length,allocations:allocs.length,payments:pays.length,partnerPassword:'demo123'});
-    }
-
-    if(path==='contributions'&&method==='GET'){
-      let [rows,partners,projects,files]=await Promise.all([
-        db(env,'contributions?select=*&order=created_at.desc&limit=1000'),
-        db(env,'partners?select=id,name,partner_code'),
-        db(env,'projects?select=id,name'),
-        db(env,'contribution_files?select=*&order=created_at.asc')]);
-      const pm=Object.fromEntries(projects.map(x=>[x.id,x.name])),sm=Object.fromEntries(partners.map(x=>[x.id,x]));
-      return json(rows.map(c=>({...c,partner_name:sm[c.partner_id]?.name||'—',partner_code:sm[c.partner_id]?.partner_code||'',project_name:pm[c.project_id]||'—',files:files.filter(f=>f.contribution_id===c.id)})));
-    }
-    if(path.startsWith('contributions/')&&method==='PATCH'){
-      const id=path.split('/')[1];
-      let [c]=await db(env,`contributions?id=eq.${id}&select=*`);
-      if(!c)return fail('Contribution not found.',404);
-      if(c.status!=='pending')return fail('This contribution request was already '+c.status+'.',409);
-      let b=await body(request),action=String(b.action||'');
-      if(!['accept','reject'].includes(action))return fail('action must be accept or reject.');
-      if(action==='accept'){
-        let [alloc]=await db(env,`allocations?project_id=eq.${c.project_id}&partner_id=eq.${c.partner_id}&select=*`);
-        if(!alloc)return fail('The allocation for this contribution no longer exists.',400);
-        await db(env,`allocations?id=eq.${alloc.id}`,{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify({acquired_users:num(alloc.acquired_users)+c.acquired,updated_at:new Date().toISOString()})});
-      }
-      const [out]=await db(env,`contributions?id=eq.${id}`,{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify({status:action==='accept'?'accepted':'rejected',reviewed_at:new Date().toISOString(),reviewed_by:s.id,review_note:b.note?String(b.note).slice(0,500):null,updated_at:new Date().toISOString()})});
-      return json(out);
-    }
-
-    if(/^partners\/[^/]+\/logs$/.test(path)&&method==='GET'){
-      const id=path.split('/')[1];
-      let [logs,partner,paymentMethods]=await Promise.all([
-        db(env,`partner_logs?partner_id=eq.${id}&select=*&order=created_at.desc&limit=200`),
-        db(env,`partners?id=eq.${id}&select=*`),
-        db(env,`payment_methods?partner_id=eq.${id}&select=*&order=created_at.asc`)]);
-      if(!partner.length)return fail('Agent not found.',404);
-      return json({partner:publicPartner(partner[0]),logs,paymentMethods});
-    }
-
-    if(path==='vaultium'&&method==='GET'){
-      let [files,contributions,partners,projects]=await Promise.all([
-        db(env,'contribution_files?select=*&order=created_at.desc&limit=2000'),
-        db(env,'contributions?select=id,code,project_id,partner_id,created_at'),
-        db(env,'partners?select=id,name,partner_code'),
-        db(env,'projects?select=id,name')]);
-      const pm=Object.fromEntries(projects.map(x=>[x.id,x.name])),sm=Object.fromEntries(partners.map(x=>[x.id,x]));
-      return json(files.map(f=>{
-        const c=contributions.find(x=>x.id===f.contribution_id);
-        return {...f,contribution_code:c?.code||'',project_name:c?(pm[c.project_id]||'—'):'—',partner_name:sm[f.partner_id]?.name||'—',partner_code:sm[f.partner_id]?.partner_code||''};
-      }));
-    }
-    if(/^files\/[^/]+$/.test(path)&&method==='DELETE'){
-      let [f]=await db(env,`contribution_files?id=eq.${path.split('/')[1]}&select=*`);
-      if(!f)return fail('File not found.',404);
-      if(env.VAULTIUM)await env.VAULTIUM.delete(f.r2_key).catch(()=>{});
-      else if(env.IOS_PROOF)await env.IOS_PROOF.delete(f.r2_key).catch(()=>{});
-      await db(env,`contribution_files?id=eq.${f.id}`,{method:'DELETE'});
-      return json({ok:true});
-    }
-
-    if(path==='helpdesk'&&method==='GET'&&s.role==='admin'){
-      let [rows,partners]=await Promise.all([
-        db(env,'helpdesk_messages?select=*&order=created_at.desc&limit=5000'),
-        db(env,'partners?select=id,name,partner_code')]);
-      const sm=Object.fromEntries(partners.map(x=>[x.id,x]));
-      const threads={};
-      for(const m of rows){
-        threads[m.partner_id]??={partner_id:m.partner_id,partner_name:sm[m.partner_id]?.name||'—',partner_code:sm[m.partner_id]?.partner_code||'',last:'',last_at:m.created_at,unread:0,total:0};
-        const t=threads[m.partner_id];
-        t.total++;
-        if(m.sender_type==='agent'&&!m.read_by_admin)t.unread++;
-        if(!t.last_at||new Date(m.created_at)>=new Date(t.last_at)){t.last=m.body;t.last_at=m.created_at}
-      }
-      const list=Object.values(threads).sort((a,b)=>new Date(b.last_at)-new Date(a.last_at));
-      return json({threads:list,totalUnread:list.reduce((a,t)=>a+t.unread,0)});
-    }
-    if(/^helpdesk\/[^/]+$/.test(path)&&method==='GET'&&s.role==='admin'){
-      const pid=path.split('/')[1];
-      let [rows,partner]=await Promise.all([
-        db(env,`helpdesk_messages?partner_id=eq.${pid}&select=*&order=created_at.asc&limit=1000`),
-        db(env,`partners?id=eq.${pid}&select=id,name,partner_code`)]);
-      if(!partner.length)return fail('Agent not found.',404);
-      await db(env,`helpdesk_messages?partner_id=eq.${pid}&sender_type=eq.agent&read_by_admin=eq.false`,{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify({read_by_admin:true})});
-      return json({partner:partner[0],messages:rows.map(m=>({...m,read_by_admin:true}))});
-    }
-    if(/^helpdesk\/[^/]+$/.test(path)&&method==='POST'&&s.role==='admin'){
-      const pid=path.split('/')[1];
-      let b=await body(request),text=String(b.body||'').trim();
-      if(!text)return fail('Message cannot be empty.');
-      let [partner]=await db(env,`partners?id=eq.${pid}&select=id`);
-      if(!partner)return fail('Agent not found.',404);
-      const [out]=await db(env,'helpdesk_messages',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({partner_id:pid,sender_type:'admin',sender_id:s.id,body:text.slice(0,2000),read_by_admin:true})});
-      return json(out,201);
-    }
-
-    if(path==='withdrawals'&&method==='GET'){
-      let [rows,partners]=await Promise.all([
-        db(env,'withdrawals?select=*&order=created_at.desc&limit=1000'),
-        db(env,'partners?select=id,name,partner_code')]);
-      const sm=Object.fromEntries(partners.map(x=>[x.id,x]));
-      return json(rows.map(w=>({...w,partner_name:sm[w.partner_id]?.name||'—',partner_code:sm[w.partner_id]?.partner_code||''})));
-    }
-    if(path.startsWith('withdrawals/')&&method==='PATCH'){
-      let id=path.split('/')[1];
-      let [w]=await db(env,`withdrawals?id=eq.${id}&select=*`);
-      if(!w)return fail('Withdrawal request not found.',404);
-      if(w.status!=='pending')return fail('This withdrawal was already '+w.status+'.',409);
-      let b=await body(request),action=String(b.action||'');
-      if(action==='accept'){
-        const provider=String(b.provider_number||'').trim(),trx=String(b.trx||'').trim();
-        if(!provider)return fail('Provider number is required.',400);
-        if(!trx)return fail('Transaction ID (trx) is required.',400);
-        const [out]=await db(env,`withdrawals?id=eq.${id}`,{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify({status:'accepted',provider_number:provider.slice(0,60),trx:trx.slice(0,100),updated_at:new Date().toISOString()})});
-        return json(out);
-      }
-      if(action==='reject'){
-        const [out]=await db(env,`withdrawals?id=eq.${id}`,{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify({status:'rejected',reject_reason:b.reason?String(b.reason).slice(0,500):null,updated_at:new Date().toISOString()})});
-        return json(out);
-      }
-      return fail('action must be accept or reject.');
     }
 
     return fail('Not found.',404);
