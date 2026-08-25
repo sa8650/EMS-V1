@@ -506,11 +506,12 @@ export async function onRequest(context){
 
     if(/^partners\/[^/]+\/logs$/.test(path)&&method==='GET'){
       const id=path.split('/')[1];
-      let [logs,partner]=await Promise.all([
+      let [logs,partner,paymentMethods]=await Promise.all([
         db(env,`partner_logs?partner_id=eq.${id}&select=*&order=created_at.desc&limit=200`),
-        db(env,`partners?id=eq.${id}&select=*`)]);
+        db(env,`partners?id=eq.${id}&select=*`),
+        db(env,`payment_methods?partner_id=eq.${id}&select=*&order=created_at.asc`)]);
       if(!partner.length)return fail('Agent not found.',404);
-      return json({partner:publicPartner(partner[0]),logs});
+      return json({partner:publicPartner(partner[0]),logs,paymentMethods});
     }
 
     if(path==='vaultium'&&method==='GET'){
