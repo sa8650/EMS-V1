@@ -15,7 +15,11 @@ const upload=async(path,formData)=>{
 const viewCache={};
 const dropCache=()=>{for(const k in viewCache)delete viewCache[k]};
 const mutate=async(path,opt={})=>{const r=await api(path,opt);dropCache();return r};
-const warm=()=>['overview','partners','projects','allocations','payments','performance','contributions'].forEach(k=>{if(!(k in viewCache))api(k).then(d=>viewCache[k]=d).catch(()=>{})});
+const warm=()=>{
+  ['overview','partners','projects','performance','contributions'].forEach(k=>{if(!(k in viewCache))api(k).then(d=>viewCache[k]=d).catch(()=>{})});
+  if(!('allocations' in viewCache))Promise.all([api('allocations'),api('projects'),api('partners')]).then(b=>viewCache.allocations={allocs:b[0],projects:b[1],partners:b[2]}).catch(()=>{});
+  if(!('payments' in viewCache))Promise.all([api('payments'),api('partners')]).then(b=>viewCache.payments={payments:b[0],partners:b[1]}).catch(()=>{});
+};
 const typing=main=>main.contains(document.activeElement)&&/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName);
 const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const money=n=>'$'+Number(n||0).toLocaleString(undefined,{maximumFractionDigits:2});
@@ -411,7 +415,7 @@ function projectModal(p){
 let aFilterQ='';
 async function aAllocations(main){
   const c=viewCache.allocations;
-  if(c)renderAllocationsView(main,c.allocs,c.projects,c.partners);else main.innerHTML='<p class="muted">Loading…</p>';
+  if(c&&c.allocs)renderAllocationsView(main,c.allocs,c.projects,c.partners);else main.innerHTML='<p class="muted">Loading…</p>';
   const bundle=await Promise.all([api('allocations'),api('projects'),api('partners')]);
   viewCache.allocations={allocs:bundle[0],projects:bundle[1],partners:bundle[2]};
   if(!typing(main))renderAllocationsView(main,bundle[0],bundle[1],bundle[2]);
@@ -469,7 +473,7 @@ function allocationModal(a,projects,agreePartners,existing){
 let payFilterQ='';
 async function aPayments(main){
   const c=viewCache.payments;
-  if(c)renderPaymentsView(main,c.payments,c.partners);else main.innerHTML='<p class="muted">Loading…</p>';
+  if(c&&c.payments)renderPaymentsView(main,c.payments,c.partners);else main.innerHTML='<p class="muted">Loading…</p>';
   const bundle=await Promise.all([api('payments'),api('partners')]);
   viewCache.payments={payments:bundle[0],partners:bundle[1]};
   if(!typing(main))renderPaymentsView(main,bundle[0],bundle[1]);
@@ -610,7 +614,14 @@ function partnerViewModal(p){
       <span>Paid</span><b>${money(p.paid)}</b>
       <span>Remaining balance</span><b>${money(p.balance)}</b>
     </div>
-    <div class="section-head" style="margin-top:16px"><h2>Edit history</h2><span class="muted">Changes made by the partner</span></div>
+    <div class="section-head" style="margin-top:16px"><h2>Payment methods</h2><span class="muted">Withdrawal details</span></div>
+    <div style="overflow:auto"><table class="view-table"><thead><tr><th>Method</th><th>Details</th><th>Type</th></tr></thead>
+    <tbody>${(d.paymentMethods||[]).length?(d.paymentMethods||[]).map(pm=>`<tr>
+      <td><b>${pm.method==='bkash'?'bKash':pm.method==='nagad'?'Nagad':'Crypto — USDT (TRC20)'}</b></td>
+      <td>${esc(pm.method==='crypto_usdt'?pm.wallet_address:pm.account_number)}</td>
+      <td>${pm.method==='crypto_usdt'?'Wallet':pm.account_type==='agent'?'Agent number':'Personal number'}</td>
+    </tr>`).join(''):'<tr><td colspan="3" class="empty">No payment method saved.</td></tr>'}</tbody></table></div>
+    <div class="section-head" style="margin-top:16px"><h2>Edit history</h2><span class="muted">Changes made by the agent</span></div>
     <div style="overflow:auto"><table class="view-table"><thead><tr><th>When</th><th>Field</th><th>Old</th><th>New</th></tr></thead>
     <tbody>${d.logs.length?d.logs.map(L=>`<tr><td>${fmtDT(L.created_at)}</td><td><b>${esc(L.field)}</b></td><td class="muted" style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(L.old_value||'—')}</td><td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(L.new_value||'—')}</td></tr>`).join(''):'<tr><td colspan="4" class="empty">No profile edits recorded yet.</td></tr>'}</tbody></table></div>`;
   }).catch(e=>{ov.querySelector('#pvBody').innerHTML=`<div class="empty">${esc(e.message)}</div>`});
