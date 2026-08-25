@@ -29,12 +29,13 @@ const pct=(a,b)=>b>0?Math.min(999,Math.round(a/b*100)):0;
 const fmtDate=d=>String(d||'').slice(0,10);
 const fmtDT=d=>{const x=new Date(d);return isNaN(x)?String(d||''):x.toLocaleString(undefined,{year:'numeric',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})};
 const fmtSize=b=>{const n=Number(b)||0;return n>=1048576?(n/1048576).toFixed(1)+' MB':n>=1024?Math.round(n/1024)+' KB':n+' B'};
-const openFile=async(id,name)=>{
+const openFile=async(id,name,download)=>{
   try{
     const r=await fetch('/api/ios/files/'+id,{headers:{...(state?.token?{authorization:'Bearer '+state.token}:{})}});
     if(!r.ok){const x=await r.json().catch(()=>({}));throw Error(x.error||'Could not open file')}
     const blob=await r.blob();const url=URL.createObjectURL(blob);
-    const a=document.createElement('a');a.href=url;a.target='_blank';a.download=name||'file';a.rel='noopener';
+    const a=document.createElement('a');a.href=url;a.target='_blank';a.rel='noopener';
+    if(download)a.download=name||'file';
     document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);
   }catch(e){toast(e.message)}
 };
@@ -43,9 +44,11 @@ function filesCell(files){
   return `<button class="btn small" data-files='${esc(JSON.stringify(files.map(f=>({id:f.id,n:f.file_name,s:f.file_size}))))}'>📁 ${files.length}</button>`;
 }
 function filesModal(files){
-  modal(`<h2>Proof files (${files.length})</h2><p>Click a file to open it in a new tab.</p>
-  ${files.map(f=>`<div class="target-row"><b style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(f.n)}</b><span>${fmtSize(f.s)}</span><span></span><button class="btn small" data-open="${f.id}" data-name="${esc(f.n)}">Open</button></div>`).join('')}
-  <div class="modal-actions"><button class="btn" data-close>Close</button></div>`).querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>openFile(b.dataset.open,b.dataset.name));
+  const ov=modal(`<h2>Proof files (${files.length})</h2><p>Click a file to open it in a new tab.</p>
+  ${files.map(f=>`<div class="target-row"><b style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(f.n)}</b><span>${fmtSize(f.s)}</span><button class="btn small" data-view="${f.id}" data-name="${esc(f.n)}">View</button><button class="btn small" data-dl="${f.id}" data-name="${esc(f.n)}">Download</button></div>`).join('')}
+  <div class="modal-actions"><button class="btn" data-close>Close</button></div>`);
+  ov.querySelectorAll('[data-view]').forEach(b=>b.onclick=()=>openFile(b.dataset.view,b.dataset.name,false));
+  ov.querySelectorAll('[data-dl]').forEach(b=>b.onclick=()=>openFile(b.dataset.dl,b.dataset.name,true));
 }
 function toast(m){let e=$('#toast');e.textContent=m;e.classList.add('show');clearTimeout(e._t);e._t=setTimeout(()=>e.classList.remove('show'),3200)}
 
@@ -378,10 +381,10 @@ function renderProjectsView(main,projects){
       <div class="meta"><span>Budget</span><b>${money(p.budget)}</b></div>
       <div class="meta"><span>Used budget <small>(auto)</small></span><b>${money(p.used_budget)}</b></div>
       <div class="meta"><span>Remaining budget</span><b>${money(p.remaining_budget)}</b></div>
-      <div class="meta"><span>Target users <small>(auto)</small></span><b>${num(p.target_users).toLocaleString()}</b></div>
-      <div class="meta"><span>Acquired users <small>(auto)</small></span><b>${num(p.acquired_users).toLocaleString()}</b></div>
+      ${(p.categories||[]).length?(p.categories||[]).map(c=>`<div class="meta"><span>Target ${catLabel(c.category).toLowerCase()}</span><b>${num(c.target).toLocaleString()}</b></div>
+      <div class="meta"><span>Acquired ${catLabel(c.category).toLowerCase()}</span><b>${num(c.acquired).toLocaleString()}</b></div>`).join(''):'<div class="meta"><span>Allocations</span><b>None yet</b></div>'}
       <div class="progress-lg"><i style="width:${pct(num(p.acquired_users),num(p.target_users))}%"></i></div>
-      <div class="meta"><span>${pct(num(p.acquired_users),num(p.target_users))}% achieved</span><span>${p.partner_count} partners</span></div>
+      <div class="meta"><span>${pct(num(p.acquired_users),num(p.target_users))}% achieved</span><span>${p.partner_count} agents</span></div>
       <div style="margin-top:12px;display:flex;gap:6px"><button class="btn small" data-edit="${p.id}">Edit</button><button class="btn small danger" data-del="${p.id}">×</button></div>
     </div>`).join(''):'<div class="empty" style="grid-column:1/-1">No projects yet.</div>'}</div>`;
   $('#addProject').onclick=()=>projectModal(null);
@@ -562,7 +565,7 @@ function renderAllocationsView(main,allocs,projects,partners){
   const list=allocs.filter(a=>!aFilterQ||(a.partner_name+' '+a.project_name).toLowerCase().includes(aFilterQ.toLowerCase()));
   const agree=partners.filter(p=>p.status==='agree');
   main.innerHTML=`
-  <div class="top"><div class="title"><h1>Allocations</h1><p>Assign project targets to agents. Acquired users &amp; commission fill automatically from contributions and payments.</p></div>
+  <div class="top"><div class="title"><h1>Allocations</h1><p>Assign project targets to agents. Acquired &amp; commission fill automatically from contributions and payments.</p></div>
   <div class="actions"><button class="btn dark" id="addAlloc">+ Add allocation</button></div></div>
   <div class="section-box"><div class="toolbar"><h2>Allocation table</h2><div class="filters"><input id="aq" placeholder="Search project or agent…" value="${esc(aFilterQ)}"></div></div>
   <div style="overflow:auto"><table class="view-table"><thead><tr><th>Project</th><th>Category</th><th>Agent</th><th>Assigned target</th><th>Users acquired <small>(auto)</small></th><th>Commission <small>(auto)</small></th><th>Progress</th><th>Status</th><th></th></tr></thead>
@@ -584,12 +587,12 @@ function allocationModal(a,projects,agreePartners){
   const editable=!!a;
   const ov=modal(`
     <h2>${editable?'Edit allocation':'Add allocation'}</h2>
-    <p>${editable?'Only the assigned target, status and note can be changed.':'Link an agreeing agent to a project with a target.'} Acquired users and commission fill <b>automatically</b> from contributions and payments.</p>
+    <p>${editable?'Only the assigned target, status and note can be changed.':'Link an agreeing agent to a project with a target.'} Acquired counts and commission fill <b>automatically</b> from contributions and payments.</p>
     <div class="field"><label>Project</label><select id="lProject" ${editable?'disabled':''}><option value="">Select project…</option>${projects.map(p=>`<option value="${p.id}" ${a?.project_id===p.id?'selected':''}>${esc(p.name)}${p.status!=='active'?' (inactive)':''}</option>`).join('')}</select></div>
     <div class="field"><label>Agent <small>${editable?'':'(only agents with status “Agree” are listed)'}</small></label><select id="lPartner" ${editable?'disabled':''}><option value="">Select agent…</option>${agreePartners.map(p=>`<option value="${p.id}" ${a?.partner_id===p.id?'selected':''}>${esc(p.name)} · #${esc(p.partner_code)}</option>`).join('')}</select></div>
     <div class="field"><label>Category <small>(what the target counts)</small></label><select id="lCategory" ${editable?'disabled':''}>${CATEGORIES.map(c=>`<option value="${c}" ${a?.category===c?'selected':''}>${catLabel(c)}</option>`).join('')}</select></div>
     ${editable?`<div class="kv" style="margin-bottom:12px"><span>Users acquired (auto)</span><b>${num(a.acquired_users).toLocaleString()}</b><span>Commission (auto)</span><b>${money(a.commission)}</b></div>`:''}
-    <div class="field"><label>Assigned target (users)</label><input id="lTarget" type="number" min="0" value="${num(a?.assigned_target)}"></div>
+    <div class="field"><label>Assigned target</label><input id="lTarget" type="number" min="0" value="${num(a?.assigned_target)}"></div>
     <div class="field"><label>Status</label><select id="lStatus">${Object.entries(ALLOC_STATUS).map(([k,v])=>`<option value="${k}" ${a?.status===k?'selected':''}>${v[0]}</option>`).join('')}</select></div>
     <div class="field"><label>Note</label><input id="lNote" value="${esc(a?.note||'')}"></div>
     <div class="modal-actions"><button class="btn" data-close>Cancel</button><button class="btn dark" id="lSave">${editable?'Save changes':'Add allocation'}</button></div>`);
@@ -713,9 +716,10 @@ function renderVaultium(main,rows){
     <td><b>${esc(f.contribution_code||'—')}</b></td>
     <td><div class="partner"><div class="avatar">${esc(initials(f.partner_name))}</div><div><b>${esc(f.partner_name)}</b><small>#${esc(f.partner_code)}</small></div></div></td>
     <td>${esc(f.project_name)}</td>
-    <td class="actions-cell"><button class="btn small" data-vopen="${f.id}" data-vname="${esc(f.file_name)}">Open</button><button class="btn small danger" data-vdel="${f.id}">×</button></td>
+    <td class="actions-cell"><button class="btn small" data-vopen="${f.id}" data-vname="${esc(f.file_name)}">View</button><button class="btn small" data-vdl="${f.id}" data-vdlname="${esc(f.file_name)}">Download</button><button class="btn small danger" data-vdel="${f.id}">×</button></td>
   </tr>`).join(''):'<tr><td colspan="8" class="empty">No files stored yet.</td></tr>'}</tbody></table></div></div>`;
-  main.querySelectorAll('[data-vopen]').forEach(b=>b.onclick=()=>openFile(b.dataset.vopen,b.dataset.vname));
+  main.querySelectorAll('[data-vopen]').forEach(b=>b.onclick=()=>openFile(b.dataset.vopen,b.dataset.vname,false));
+  main.querySelectorAll('[data-vdl]').forEach(b=>b.onclick=()=>openFile(b.dataset.dl,b.dataset.dlname,true));
   main.querySelectorAll('[data-vdel]').forEach(b=>b.onclick=async()=>{
     if(!confirm('Delete this file from Vaultium storage?'))return;
     try{await mutate('files/'+b.dataset.vdel,{method:'DELETE'});toast('File deleted.');renderAdmin()}catch(e){toast(e.message)}
@@ -785,14 +789,15 @@ async function aPerformance(main){
 }
 function renderPerformanceView(main,rows){
   main.innerHTML=`
-  <div class="top"><div class="title"><h1>Performance</h1><p>Agent achievement against acquisition targets — ranked automatically.</p></div></div>
-  <div class="section-box"><div style="overflow:auto"><table class="view-table"><thead><tr><th>Rank</th><th>Agent</th><th>Projects</th><th>Assigned users</th><th>Acquired users</th><th>Achievement</th></tr></thead>
+  <div class="top"><div class="title"><h1>Performance</h1><p>Category-wise achievement per agent and project — ranked automatically.</p></div></div>
+  <div class="section-box"><div style="overflow:auto"><table class="view-table"><thead><tr><th>Rank</th><th>Agent</th><th>Project</th><th>Category</th><th>Assigned</th><th>Acquired</th><th>Achievement</th></tr></thead>
   <tbody>${rows.length?rows.map(r=>`<tr>
     <td><b>#${r.rank}</b></td>
     <td><div class="partner"><div class="avatar">${esc(initials(r.name))}</div><div><b>${esc(r.name)}</b><small>#${esc(r.partner_code)} · ${TYPE_LABELS[r.type]||r.type}</small></div></div></td>
-    <td>${r.projects}</td><td>${num(r.assigned).toLocaleString()}</td><td><b>${num(r.acquired).toLocaleString()}</b></td>
+    <td>${esc(r.project_name)}</td><td><span class="pill blue">${catLabel(r.category)}</span></td>
+    <td>${num(r.assigned).toLocaleString()}</td><td><b>${num(r.acquired).toLocaleString()}</b></td>
     <td style="min-width:140px"><div style="display:flex;justify-content:space-between;font-size:11px"><b>${r.pct}%</b></div><div class="progress"><i style="width:${Math.min(100,r.pct)}%"></i></div></td>
-  </tr>`).join(''):'<tr><td colspan="6" class="empty">No performance data yet.</td></tr>'}</tbody></table></div></div>`;
+  </tr>`).join(''):'<tr><td colspan="7" class="empty">No performance data yet.</td></tr>'}</tbody></table></div></div>`;
 }
 
 /* ---------- ADMIN: SETTINGS ---------- */
@@ -969,13 +974,13 @@ async function withdrawModal(){
 function renderPPerformance(main,d){
     main.innerHTML=`<div class="top"><div class="title"><h1>My performance</h1><p>Your achievement across all allocated projects.</p></div></div>
     <div class="kpi-grid">
-      <div class="card stat"><div><div class="label">Total Projects</div><div class="value">${d.performance.projects}</div></div></div>
-      <div class="card stat"><div><div class="label">Assigned Users</div><div class="value">${num(d.performance.assigned).toLocaleString()}</div></div></div>
-      <div class="card stat"><div><div class="label">Acquired Users</div><div class="value">${num(d.performance.acquired).toLocaleString()}</div></div></div>
+      <div class="card stat"><div><div class="label">Total Allocations</div><div class="value">${d.performance.projects}</div></div></div>
+      <div class="card stat"><div><div class="label">Assigned</div><div class="value">${num(d.performance.assigned).toLocaleString()}</div></div></div>
+      <div class="card stat"><div><div class="label">Acquired</div><div class="value">${num(d.performance.acquired).toLocaleString()}</div></div></div>
       <div class="card stat"><div><div class="label">Achievement</div><div class="value">${d.performance.pct}%</div><div class="change">Rank #${d.performance.rank||'—'} of ${d.performance.total}</div></div></div>
     </div>
-    <div class="section-box"><div class="toolbar"><h2>Project-wise performance</h2></div><div style="overflow:auto"><table class="view-table"><thead><tr><th>Project</th><th>My target</th><th>My acquired</th><th>Achievement</th><th>Commission</th><th>Status</th></tr></thead>
-    <tbody>${d.projects.length?d.projects.map(x=>`<tr><td><b>${esc(x.project?.name||'—')}</b></td><td>${num(x.assigned_target).toLocaleString()}</td><td>${num(x.acquired_users).toLocaleString()}</td><td>${x.pct}%</td><td>${money(x.commission)}</td><td>${pill(ALLOC_STATUS,x.status)}</td></tr>`).join(''):'<tr><td colspan="6" class="empty">No allocations yet.</td></tr>'}</tbody></table></div></div>`;
+    <div class="section-box"><div class="toolbar"><h2>Category-wise performance</h2></div><div style="overflow:auto"><table class="view-table"><thead><tr><th>Project</th><th>Category</th><th>My target</th><th>My acquired</th><th>Achievement</th><th>Commission</th><th>Status</th></tr></thead>
+    <tbody>${d.projects.length?d.projects.map(x=>`<tr><td><b>${esc(x.project?.name||'—')}</b></td><td><span class="pill blue">${catLabel(x.category)}</span></td><td>${num(x.assigned_target).toLocaleString()}</td><td>${num(x.acquired_users).toLocaleString()}</td><td>${x.pct}%</td><td>${money(x.commission)}</td><td>${pill(ALLOC_STATUS,x.status)}</td></tr>`).join(''):'<tr><td colspan="7" class="empty">No allocations yet.</td></tr>'}</tbody></table></div></div>`;
 }
 
 /* ---------- AGENT: MY TEAM ---------- */
