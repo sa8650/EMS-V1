@@ -18,7 +18,7 @@ const mutate=async(path,opt={})=>{const r=await api(path,opt);dropCache();return
 const warm=()=>{
   ['overview','partners','projects','performance','contributions'].forEach(k=>{if(!(k in viewCache))api(k).then(d=>viewCache[k]=d).catch(()=>{})});
   if(!('allocations' in viewCache))Promise.all([api('allocations'),api('projects'),api('partners')]).then(b=>viewCache.allocations={allocs:b[0],projects:b[1],partners:b[2]}).catch(()=>{});
-  if(!('payments' in viewCache))Promise.all([api('payments'),api('partners'),api('allocations')]).then(b=>viewCache.payments={payments:b[0],partners:b[1],allocations:b[2]}).catch(()=>{});
+  if(!('payments' in viewCache))Promise.all([api('payments'),api('partners'),api('allocations'),api('withdrawals')]).then(b=>viewCache.payments={payments:b[0],partners:b[1],allocations:b[2],withdrawals:b[3]}).catch(()=>{});
 };
 const typing=main=>main.contains(document.activeElement)&&/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName);
 const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -54,6 +54,7 @@ const PARTNER_STATUS={disagree:['Disagree','red'],agree:['Agree','green'],not_re
 const ALLOC_STATUS={on_target:['On Target','green'],active:['Active','blue'],behind:['Behind','red'],inactive:['Inactive','gray']};
 const PAY_STATUS={scheduled:['Scheduled','blue'],paid:['Paid','green'],pending:['Pending','yellow']};
 const CONTRIB_STATUS={pending:['Pending','yellow'],accepted:['Accepted','green'],rejected:['Rejected','red']};
+const WD_STATUS={pending:['Pending','yellow'],accepted:['Accepted','green'],rejected:['Rejected','red']};
 const pill=(map,key)=>{const m=map[key]||[String(key),'gray'];return `<span class="pill ${m[1]}">${m[0]}</span>`};
 const projPill=s=>s==='active'?'<span class="pill green">Active</span>':'<span class="pill gray">Inactive</span>';
 
@@ -415,31 +416,68 @@ function projectModal(p){
 let payFilterQ='';
 async function aPayments(main){
   const c=viewCache.payments;
-  if(c&&c.payments)renderPaymentsView(main,c.payments,c.partners,c.allocations||[]);else main.innerHTML='<p class="muted">Loading…</p>';
-  const [payments,partners,allocations]=await Promise.all([api('payments'),api('partners'),api('allocations')]);
-  viewCache.payments={payments,partners,allocations};
-  if(!typing(main))renderPaymentsView(main,payments,partners,allocations);
+  if(c&&c.payments)renderPaymentsView(main,c.payments,c.partners,c.allocations||[],c.withdrawals||[]);else main.innerHTML='<p class="muted">Loading…</p>';
+  const [payments,partners,allocations,withdrawals]=await Promise.all([api('payments'),api('partners'),api('allocations'),api('withdrawals')]);
+  viewCache.payments={payments,partners,allocations,withdrawals};
+  if(!typing(main))renderPaymentsView(main,payments,partners,allocations,withdrawals);
 }
-function renderPaymentsView(main,payments,partners,allocations){
+function renderPaymentsView(main,payments,partners,allocations,withdrawals){
+  withdrawals=withdrawals||[];
   const list=payments.filter(p=>!payFilterQ||(p.partner_name+' '+p.project_name).toLowerCase().includes(payFilterQ.toLowerCase()));
+  const wdMethod=w=>w.method==='bkash'?'bKash':w.method==='nagad'?'Nagad':'Crypto — USDT (TRC20)';
+  const wdDest=w=>w.method==='crypto_usdt'?w.wallet_address:w.account_number;
+  const wdType=w=>w.method==='crypto_usdt'?'Wallet':w.account_type==='agent'?'Agent number':'Personal number';
   main.innerHTML=`
-  <div class="top"><div class="title"><h1>Payments</h1><p>Pick an agent, review their projects &amp; history, then pay — the amount is added to that project's commission automatically.</p></div>
+  <div class="top"><div class="title"><h1>Payments</h1><p>Pick an agent, review their projects &amp; history, then pay — paid amounts add to commission automatically.</p></div>
   <div class="actions"><button class="btn dark" id="addPay">+ Add payment</button></div></div>
-  <div class="section-box"><div class="toolbar"><h2>Payment table</h2><div class="filters"><input id="payq" placeholder="Search agent or project…" value="${esc(payFilterQ)}"></div></div>
-  <div style="overflow:auto"><table class="view-table"><thead><tr><th>Payment ID</th><th>Date</th><th>Agent</th><th>Project</th><th>Amount</th><th>Status</th><th></th></tr></thead>
-  <tbody>${list.length?list.map(p=>`<tr>
-    <td><b>${esc(String(p.id).slice(0,8).toUpperCase())}</b></td><td>${fmtDate(p.payment_date)}</td>
-    <td><div class="partner"><div class="avatar">${esc(initials(p.partner_name))}</div><div><b>${esc(p.partner_name)}</b><small>#${esc(p.partner_code)}</small></div></div></td>
-    <td>${esc(p.project_name)}</td><td><b>${money(p.amount)}</b></td>
-    <td>${pill(PAY_STATUS,p.status)}</td>
-    <td class="actions-cell">${p.status!=='paid'?`<button class="btn small" data-paid="${p.id}">Mark paid</button>`:''}<button class="btn small danger" data-del="${p.id}">×</button></td>
-  </tr>`).join(''):'<tr><td colspan="7" class="empty">No payments yet.</td></tr>'}</tbody></table></div></div>`;
-  $('#addPay').onclick=()=>paymentModal(partners,allocations,payments);
-  $('#payq').oninput=e=>{payFilterQ=e.target.value;renderPaymentsView(main,payments,partners,allocations)};
-  main.querySelectorAll('[data-paid]').forEach(b=>b.onclick=async()=>{try{await mutate('payments/'+b.dataset.paid,{method:'PATCH',body:JSON.stringify({status:'paid'})});toast('Payment marked as paid.');renderAdmin()}catch(e){toast(e.message)}});
-  main.querySelectorAll('[data-del]').forEach(b=>b.onclick=async()=>{if(!confirm('Delete this payment? The commission added by it will be removed too.'))return;try{await mutate('payments/'+b.dataset.del,{method:'DELETE'});toast('Payment deleted.');renderAdmin()}catch(e){toast(e.message)}});
-}
+  <div class="two">
+    <div class="section-box" style="margin-top:0"><div class="toolbar"><h2>Payouts</h2><div class="filters"><input id="payq" placeholder="Search agent or project…" value="${esc(payFilterQ)}"></div></div>
+    <div style="overflow:auto"><table class="view-table"><thead><tr><th>Payment ID</th><th>Date</th><th>Agent</th><th>Project</th><th>Amount</th><th>Status</th><th></th></tr></thead>
+    <tbody>${list.length?list.map(p=>`<tr>
+      <td><b>${esc(String(p.id).slice(0,8).toUpperCase())}</b></td><td>${fmtDate(p.payment_date)}</td>
+      <td><div class="partner"><div class="avatar">${esc(initials(p.partner_name))}</div><div><b>${esc(p.partner_name)}</b><small>#${esc(p.partner_code)}</small></div></div></td>
+      <td>${esc(p.project_name)}</td><td><b>${money(p.amount)}</b></td>
+      <td>${pill(PAY_STATUS,p.status)}</td>
+      <td class="actions-cell">${p.status!=='paid'?`<button class="btn small" data-paid="${p.id}">Mark paid</button>`:''}<button class="btn small danger" data-del="${p.id}">×</button></td>
+    </tr>`).join(''):'<tr><td colspan="7" class="empty">No payments yet.</td></tr>'}</tbody></table></div></div>
 
+    <div class="section-box" style="margin-top:0"><div class="toolbar"><h2>Withdraw requests</h2><span class="muted">${withdrawals.filter(w=>w.status==='pending').length} pending</span></div>
+    <div style="overflow:auto"><table class="view-table"><thead><tr><th>ID</th><th>Date</th><th>Agent</th><th>Method</th><th>Type</th><th>Number / Address</th><th>Amount</th><th>Provider</th><th>Trx</th><th>Status</th><th></th></tr></thead>
+    <tbody>${withdrawals.length?withdrawals.map(w=>`<tr>
+      <td><b>${esc(String(w.id).slice(0,8).toUpperCase())}</b></td><td>${fmtDate(w.created_at)}</td>
+      <td><div class="partner"><div class="avatar">${esc(initials(w.partner_name))}</div><div><b>${esc(w.partner_name)}</b><small>#${esc(w.partner_code)}</small></div></div></td>
+      <td>${wdMethod(w)}</td><td>${wdType(w)}</td><td>${esc(wdDest(w)||'—')}</td><td><b>${money(w.amount)}</b></td>
+      <td>${esc(w.provider_number||'—')}</td><td>${esc(w.trx||'—')}</td>
+      <td>${pill(WD_STATUS,w.status)}${w.status==='rejected'&&w.reject_reason?`<small class="muted" style="display:block;margin-top:3px">${esc(w.reject_reason)}</small>`:''}</td>
+      <td class="actions-cell">${w.status==='pending'?`<button class="btn small" data-wacc="${w.id}">Accept</button><button class="btn small danger" data-wrej="${w.id}">Reject</button>`:''}</td>
+    </tr>`).join(''):'<tr><td colspan="11" class="empty">No withdrawal requests.</td></tr>'}</tbody></table></div></div>
+  </div>`;
+  $('#addPay').onclick=()=>paymentModal(partners,allocations,payments);
+  $('#payq').oninput=e=>{payFilterQ=e.target.value;renderPaymentsView(main,payments,partners,allocations,withdrawals)};
+  main.querySelectorAll('[data-paid]').forEach(b=>b.onclick=async()=>{try{await mutate('payments/'+b.dataset.paid,{method:'PATCH',body:JSON.stringify({status:'paid'})});toast('Payment marked as paid — commission updated.');renderAdmin()}catch(e){toast(e.message)}});
+  main.querySelectorAll('[data-del]').forEach(b=>b.onclick=async()=>{if(!confirm('Delete this payment? Its commission (if paid) will be removed too.'))return;try{await mutate('payments/'+b.dataset.del,{method:'DELETE'});toast('Payment deleted.');renderAdmin()}catch(e){toast(e.message)}});
+  main.querySelectorAll('[data-wacc]').forEach(b=>b.onclick=()=>withdrawAcceptModal(withdrawals.find(w=>w.id===b.dataset.wacc)));
+  main.querySelectorAll('[data-wrej]').forEach(b=>b.onclick=async()=>{
+    const reason=prompt('Reason for rejection (optional):');if(reason===null)return;
+    try{await mutate('withdrawals/'+b.dataset.wrej,{method:'PATCH',body:JSON.stringify({action:'reject',reason})});toast('Withdrawal rejected.');renderAdmin()}catch(e){toast(e.message)}
+  });
+}
+function withdrawAcceptModal(w){
+  if(!w)return;
+  const ov=modal(`<h2>Accept withdrawal</h2>
+    <p><b>${esc(w.partner_name)}</b> · ${money(w.amount)} via ${w.method==='bkash'?'bKash':w.method==='nagad'?'Nagad':'USDT TRC20'} (${esc(w.method==='crypto_usdt'?w.wallet_address:w.account_number)})</p>
+    <div class="field"><label>Provider number</label><input id="wProv" placeholder="e.g. agent/shop number used to send"></div>
+    <div class="field"><label>Transaction ID (trx)</label><input id="wTrx" placeholder="e.g. TRX-8801"></div>
+    <div class="modal-actions"><button class="btn" data-close>Cancel</button><button class="btn dark" id="wGo">Accept &amp; save</button></div>`);
+  ov.querySelector('#wGo').onclick=async()=>{
+    const provider=ov.querySelector('#wProv').value.trim(),trx=ov.querySelector('#wTrx').value.trim();
+    if(!provider)return toast('Provider number is required.');
+    if(!trx)return toast('Transaction ID (trx) is required.');
+    const btn=ov.querySelector('#wGo');btn.disabled=true;btn.textContent='Saving…';
+    try{await mutate('withdrawals/'+w.id,{method:'PATCH',body:JSON.stringify({action:'accept',provider_number:provider,trx})});ov.remove();toast('Withdrawal accepted.');renderAdmin()}
+    catch(e){toast(e.message);btn.disabled=false;btn.textContent='Accept & save'}
+  };
+}
 /* ---------- ADMIN: ADD PAYMENT (agent picker) ---------- */
 function paymentModal(partners,allocations,payments){
   const ov=modal(`
@@ -882,14 +920,50 @@ function renderPProjects(main,d){
       </div>`).join(''):'<div class="empty" style="grid-column:1/-1">No projects allocated to you yet.</div>'}</div>`;
 }
 function renderPPayments(main,d){
-    main.innerHTML=`<div class="top"><div class="title"><h1>My payments</h1><p>Earnings and payout history.</p></div></div>
+    main.innerHTML=`<div class="top"><div class="title"><h1>My payments</h1><p>Earnings, payout history and withdrawals.</p></div>
+    <div class="actions"><button class="btn dark" id="withdrawBtn">Withdraw</button></div></div>
     <div class="kpi-grid">
       <div class="card stat"><div><div class="label">Total Earnings</div><div class="value">${money(d.stats.income)}</div></div></div>
-      <div class="card stat"><div><div class="label">Paid</div><div class="value">${money(d.stats.paid)}</div></div></div>
+      <div class="card stat"><div><div class="label">Paid</div><div class="value">${money(d.stats.paid)}</div><div class="change">Withdrawn successfully</div></div></div>
       <div class="card stat"><div><div class="label">Available Balance</div><div class="value">${money(d.stats.balance)}</div></div></div>
     </div>
-    <div class="section-box"><div class="toolbar"><h2>Payout history</h2></div><div style="overflow:auto"><table class="view-table"><thead><tr><th>Payment ID</th><th>Date</th><th>Project</th><th>Amount</th><th>Status</th></tr></thead>
-    <tbody>${d.payments.length?d.payments.map(p=>`<tr><td><b>${esc(String(p.id).slice(0,8).toUpperCase())}</b></td><td>${fmtDate(p.payment_date)}</td><td>${esc(p.project_name)}</td><td><b>${money(p.amount)}</b></td><td>${pill(PAY_STATUS,p.status)}</td></tr>`).join(''):'<tr><td colspan="5" class="empty">No payments yet.</td></tr>'}</tbody></table></div></div>`;
+    <div class="two">
+    <div class="section-box" style="margin-top:0"><div class="toolbar"><h2>Payout history</h2></div><div style="overflow:auto"><table class="view-table"><thead><tr><th>Payment ID</th><th>Date</th><th>Project</th><th>Amount</th><th>Status</th></tr></thead>
+    <tbody>${d.payments.length?d.payments.map(p=>`<tr><td><b>${esc(String(p.id).slice(0,8).toUpperCase())}</b></td><td>${fmtDate(p.payment_date)}</td><td>${esc(p.project_name)}</td><td><b>${money(p.amount)}</b></td><td>${pill(PAY_STATUS,p.status)}</td></tr>`).join(''):'<tr><td colspan="5" class="empty">No payments yet.</td></tr>'}</tbody></table></div></div>
+    <div class="section-box" style="margin-top:0"><div class="toolbar"><h2>Withdrawals</h2><span class="muted">Your requests</span></div><div style="overflow:auto"><table class="view-table"><thead><tr><th>ID</th><th>Date</th><th>Method</th><th>Type</th><th>Number / Address</th><th>Amount</th><th>Trx</th><th>Status</th></tr></thead>
+    <tbody>${(d.withdrawals||[]).length?(d.withdrawals||[]).map(w=>`<tr>
+      <td><b>${esc(String(w.id).slice(0,8).toUpperCase())}</b></td><td>${fmtDate(w.created_at)}</td>
+      <td>${w.method==='bkash'?'bKash':w.method==='nagad'?'Nagad':'Crypto — USDT (TRC20)'}</td>
+      <td>${w.method==='crypto_usdt'?'Wallet':w.account_type==='agent'?'Agent number':'Personal number'}</td>
+      <td>${esc(w.method==='crypto_usdt'?w.wallet_address:w.account_number)}</td>
+      <td><b>${money(w.amount)}</b></td><td>${esc(w.trx||'—')}</td>
+      <td>${pill(WD_STATUS,w.status)}${w.status==='rejected'&&w.reject_reason?`<small class="muted" style="display:block;margin-top:3px">${esc(w.reject_reason)}</small>`:''}</td>
+    </tr>`).join(''):'<tr><td colspan="8" class="empty">No withdrawals yet.</td></tr>'}</tbody></table></div></div>
+    </div>`;
+    $('#withdrawBtn').onclick=withdrawModal;
+}
+async function withdrawModal(){
+  let methods=[];
+  try{methods=await api('me/payment-methods')}catch(e){return toast(e.message)}
+  if(!methods.length)return toast('Add a payment method in your Profile first.');
+  const ov0=viewCache['me/overview'];
+  const bal=ov0?.stats?.balance??0;
+  const ov=modal(`
+    <h2>Withdraw</h2>
+    <p>Requests are reviewed by the administrator. Pending requests lock part of your balance.</p>
+    <div class="field"><label>Available balance</label><input readonly value="${money(bal)}"></div>
+    <div class="field"><label>Payment method</label><select id="wdMethod"><option value="">Select method…</option>${methods.map(m=>`<option value="${m.id}">${m.method==='bkash'?'bKash':m.method==='nagad'?'Nagad':'USDT TRC20'} · ${esc(m.method==='crypto_usdt'?m.wallet_address:m.account_number)} (${m.method==='crypto_usdt'?'Wallet':m.account_type==='agent'?'Agent':'Personal'})</option>`).join('')}</select></div>
+    <div class="field"><label>Withdraw amount ($)</label><input id="wdAmount" type="number" min="0" step="10" placeholder="0"></div>
+    <div class="modal-actions"><button class="btn" data-close>Cancel</button><button class="btn dark" id="wdGo">Withdraw</button></div>`);
+  ov.querySelector('#wdGo').onclick=async()=>{
+    const methodId=ov.querySelector('#wdMethod').value,amount=num(ov.querySelector('#wdAmount').value);
+    if(!methodId)return toast('Select a payment method.');
+    if(amount<=0)return toast('Enter a withdraw amount.');
+    if(amount>bal)return toast(`Amount cannot exceed your available balance (${money(bal)}).`);
+    const btn=ov.querySelector('#wdGo');btn.disabled=true;btn.textContent='Sending…';
+    try{await mutate('withdrawals',{method:'POST',body:JSON.stringify({payment_method_id:methodId,amount})});ov.remove();toast('Withdrawal request sent for admin approval.');renderPartner()}
+    catch(e){toast(e.message);btn.disabled=false;btn.textContent='Withdraw'}
+  };
 }
 function renderPPerformance(main,d){
     main.innerHTML=`<div class="top"><div class="title"><h1>My performance</h1><p>Your achievement across all allocated projects.</p></div></div>
