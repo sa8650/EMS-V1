@@ -18,7 +18,7 @@ const mutate=async(path,opt={})=>{const r=await api(path,opt);dropCache();return
 const warm=()=>{
   ['overview','partners','projects','performance','contributions'].forEach(k=>{if(!(k in viewCache))api(k).then(d=>viewCache[k]=d).catch(()=>{})});
   if(!('allocations' in viewCache))Promise.all([api('allocations'),api('projects'),api('partners')]).then(b=>viewCache.allocations={allocs:b[0],projects:b[1],partners:b[2]}).catch(()=>{});
-  if(!('payments' in viewCache))Promise.all([api('payments'),api('partners')]).then(b=>viewCache.payments={payments:b[0],partners:b[1]}).catch(()=>{});
+  if(!('payments' in viewCache))Promise.all([api('payments'),api('partners'),api('allocations')]).then(b=>viewCache.payments={payments:b[0],partners:b[1],allocations:b[2]}).catch(()=>{});
 };
 const typing=main=>main.contains(document.activeElement)&&/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName);
 const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -61,9 +61,9 @@ function save(s){state=s;localStorage.setItem('ios.session',JSON.stringify(s))}
 function logout(){localStorage.removeItem('ios.session');state=null;boot()}
 
 /* ═══════════ MODAL SYSTEM ═══════════ */
-function modal(html){
+function modal(html,cls=''){
   const ov=document.createElement('div');ov.className='overlay';
-  ov.innerHTML=`<div class="modal">${html}</div>`;
+  ov.innerHTML=`<div class="modal ${cls}">${html}</div>`;
   document.body.append(ov);
   ov.addEventListener('click',e=>{if(e.target===ov)ov.remove()});
   ov.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>ov.remove());
@@ -411,6 +411,108 @@ function projectModal(p){
   };
 }
 
+/* ---------- ADMIN: PAYMENTS ---------- */
+let payFilterQ='';
+async function aPayments(main){
+  const c=viewCache.payments;
+  if(c&&c.payments)renderPaymentsView(main,c.payments,c.partners,c.allocations||[]);else main.innerHTML='<p class="muted">Loading…</p>';
+  const [payments,partners,allocations]=await Promise.all([api('payments'),api('partners'),api('allocations')]);
+  viewCache.payments={payments,partners,allocations};
+  if(!typing(main))renderPaymentsView(main,payments,partners,allocations);
+}
+function renderPaymentsView(main,payments,partners,allocations){
+  const list=payments.filter(p=>!payFilterQ||(p.partner_name+' '+p.project_name).toLowerCase().includes(payFilterQ.toLowerCase()));
+  main.innerHTML=`
+  <div class="top"><div class="title"><h1>Payments</h1><p>Pick an agent, review their projects &amp; history, then pay — the amount is added to that project's commission automatically.</p></div>
+  <div class="actions"><button class="btn dark" id="addPay">+ Add payment</button></div></div>
+  <div class="section-box"><div class="toolbar"><h2>Payment table</h2><div class="filters"><input id="payq" placeholder="Search agent or project…" value="${esc(payFilterQ)}"></div></div>
+  <div style="overflow:auto"><table class="view-table"><thead><tr><th>Payment ID</th><th>Date</th><th>Agent</th><th>Project</th><th>Amount</th><th>Status</th><th></th></tr></thead>
+  <tbody>${list.length?list.map(p=>`<tr>
+    <td><b>${esc(String(p.id).slice(0,8).toUpperCase())}</b></td><td>${fmtDate(p.payment_date)}</td>
+    <td><div class="partner"><div class="avatar">${esc(initials(p.partner_name))}</div><div><b>${esc(p.partner_name)}</b><small>#${esc(p.partner_code)}</small></div></div></td>
+    <td>${esc(p.project_name)}</td><td><b>${money(p.amount)}</b></td>
+    <td>${pill(PAY_STATUS,p.status)}</td>
+    <td class="actions-cell">${p.status!=='paid'?`<button class="btn small" data-paid="${p.id}">Mark paid</button>`:''}<button class="btn small danger" data-del="${p.id}">×</button></td>
+  </tr>`).join(''):'<tr><td colspan="7" class="empty">No payments yet.</td></tr>'}</tbody></table></div></div>`;
+  $('#addPay').onclick=()=>paymentModal(partners,allocations,payments);
+  $('#payq').oninput=e=>{payFilterQ=e.target.value;renderPaymentsView(main,payments,partners,allocations)};
+  main.querySelectorAll('[data-paid]').forEach(b=>b.onclick=async()=>{try{await mutate('payments/'+b.dataset.paid,{method:'PATCH',body:JSON.stringify({status:'paid'})});toast('Payment marked as paid.');renderAdmin()}catch(e){toast(e.message)}});
+  main.querySelectorAll('[data-del]').forEach(b=>b.onclick=async()=>{if(!confirm('Delete this payment? The commission added by it will be removed too.'))return;try{await mutate('payments/'+b.dataset.del,{method:'DELETE'});toast('Payment deleted.');renderAdmin()}catch(e){toast(e.message)}});
+}
+
+/* ---------- ADMIN: ADD PAYMENT (agent picker) ---------- */
+function paymentModal(partners,allocations,payments){
+  const ov=modal(`
+    <h2>Add payment</h2>
+    <p>Pick an agent on the left — their profile, project commissions and payment history show on the right.</p>
+    <div class="pickwrap">
+      <aside class="pickside">
+        <input id="pkSearch" class="search" style="width:100%" placeholder="Search agent or ID…">
+        <div class="picklist" id="pkList"></div>
+      </aside>
+      <section class="pickmain" id="pkMain"><div class="empty">Select an agent to continue.</div></section>
+    </div>
+    <div class="modal-actions"><button class="btn" data-close>Close</button></div>`,'wide');
+  let selected=null,q='';
+  const paintList=()=>{
+    const list=partners.filter(p=>!q||(p.name+' '+p.partner_code+' '+p.email).toLowerCase().includes(q.toLowerCase()));
+    ov.querySelector('#pkList').innerHTML=list.length?list.map(p=>`<div class="pickitem${selected===p.id?' active':''}" data-pk="${p.id}">
+      <div class="avatar">${esc(initials(p.name))}</div>
+      <div><b>${esc(p.name)}</b><small>#${esc(p.partner_code)} · ${TYPE_LABELS[p.type]||p.type}</small></div>
+    </div>`).join(''):'<div class="empty" style="padding:18px">No agent found.</div>';
+    ov.querySelectorAll('[data-pk]').forEach(el=>el.onclick=()=>{selected=el.dataset.pk;q=ov.querySelector('#pkSearch').value;paintList();paintMain()});
+  };
+  const paintMain=()=>{
+    const p=partners.find(x=>x.id===selected);
+    if(!p){ov.querySelector('#pkMain').innerHTML='<div class="empty">Select an agent to continue.</div>';return}
+    const myAllocs=allocations.filter(a=>a.partner_id===p.id);
+    const myPays=payments.filter(x=>x.partner_id===p.id);
+    ov.querySelector('#pkMain').innerHTML=`
+    <div class="kv" style="margin-bottom:4px">
+      <span>Agent ID</span><b>#${esc(p.partner_code)}</b>
+      <span>Name</span><b>${esc(p.name)}</b>
+      <span>Email</span><b>${esc(p.email)}</b>
+      <span>Phone</span><b>${esc(p.phone||'—')}</b>
+      <span>Type</span><b>${TYPE_LABELS[p.type]||p.type}</b>
+      <span>Status</span><b>${pill(PARTNER_STATUS,p.status)}</b>
+      <span>Balance</span><b>${money(p.balance)}</b>
+    </div>
+    <div class="section-head" style="margin-top:10px"><h2>Projects</h2><span class="muted">Target · acquired · commission (auto)</span></div>
+    ${myAllocs.length?myAllocs.map(a=>`<div class="target-row">
+      <b>${esc(a.project_name)}</b>
+      <span>Target ${num(a.assigned_target).toLocaleString()}</span>
+      <span>Acquired ${num(a.acquired_users).toLocaleString()}</span>
+      <span class="right"><b>${money(a.commission)}</b></span>
+    </div>`).join(''):'<p class="muted" style="font-size:12px">No allocations for this agent.</p>'}
+    <div class="section-head" style="margin-top:12px"><h2>Previous payments</h2><span class="muted">${myPays.length} total</span></div>
+    <div style="overflow:auto;max-height:180px"><table class="view-table"><thead><tr><th>Payment ID</th><th>Date</th><th>Project</th><th>Amount</th><th>Status</th></tr></thead>
+    <tbody>${myPays.length?myPays.map(x=>`<tr><td><b>${esc(String(x.id).slice(0,8).toUpperCase())}</b></td><td>${fmtDate(x.payment_date)}</td><td>${esc(x.project_name)}</td><td>${money(x.amount)}</td><td>${pill(PAY_STATUS,x.status)}</td></tr>`).join(''):'<tr><td colspan="5" class="empty">No previous payments.</td></tr>'}</tbody></table></div>
+    <div class="payform">
+      <div class="section-head" style="margin:0 0 10px"><h2>New payment</h2><span class="muted">Amount is added to the selected project's commission</span></div>
+      <div class="field-row">
+        <div class="field"><label>Project</label><select id="pkProject"><option value="">Select project…</option>${myAllocs.map(a=>`<option value="${a.project_id}">${esc(a.project_name)} · ${money(a.commission)} commission</option>`).join('')}</select></div>
+        <div class="field"><label>Status</label><select id="pkStatus"><option value="pending">Pending</option><option value="scheduled">Scheduled</option><option value="paid">Paid</option></select></div>
+      </div>
+      <div class="field"><label>Payment amount ($)</label><input id="pkAmount" type="number" min="0" step="10" placeholder="0"></div>
+      <div class="modal-actions" style="justify-content:flex-start;margin-top:8px"><button class="btn dark" id="pkGo">Payment</button></div>
+    </div>`;
+    const go=ov.querySelector('#pkGo');
+    if(!myAllocs.length)go.disabled=true;
+    go.onclick=async()=>{
+      const projectId=ov.querySelector('#pkProject').value,amount=num(ov.querySelector('#pkAmount').value),status=ov.querySelector('#pkStatus').value;
+      if(!projectId)return toast('Select a project.');
+      if(amount<=0)return toast('Enter a payment amount.');
+      go.disabled=true;go.textContent='Saving…';
+      try{
+        await mutate('payments',{method:'POST',body:JSON.stringify({project_id:projectId,partner_id:selected,amount,status})});
+        ov.remove();toast('Payment saved — commission updated.');renderAdmin();
+      }catch(e){toast(e.message);go.disabled=false;go.textContent='Payment'}
+    };
+  };
+  ov.querySelector('#pkSearch').oninput=e=>{q=e.target.value;paintList()};
+  paintList();
+}
+
 /* ---------- ADMIN: ALLOCATIONS ---------- */
 let aFilterQ='';
 async function aAllocations(main){
@@ -424,10 +526,10 @@ function renderAllocationsView(main,allocs,projects,partners){
   const list=allocs.filter(a=>!aFilterQ||(a.partner_name+' '+a.project_name).toLowerCase().includes(aFilterQ.toLowerCase()));
   const agree=partners.filter(p=>p.status==='agree');
   main.innerHTML=`
-  <div class="top"><div class="title"><h1>Allocations</h1><p>Assign project targets to agents and track progress.</p></div>
+  <div class="top"><div class="title"><h1>Allocations</h1><p>Assign project targets to agents. Acquired users &amp; commission fill automatically from contributions and payments.</p></div>
   <div class="actions"><button class="btn dark" id="addAlloc">+ Add allocation</button></div></div>
-  <div class="section-box"><div class="toolbar"><h2>Allocation table</h2><div class="filters"><input id="aq" placeholder="Search project or partner…" value="${esc(aFilterQ)}"></div></div>
-  <div style="overflow:auto"><table class="view-table"><thead><tr><th>Project</th><th>Agent</th><th>Assigned target</th><th>Users acquired</th><th>Commission</th><th>Progress</th><th>Status</th><th></th></tr></thead>
+  <div class="section-box"><div class="toolbar"><h2>Allocation table</h2><div class="filters"><input id="aq" placeholder="Search project or agent…" value="${esc(aFilterQ)}"></div></div>
+  <div style="overflow:auto"><table class="view-table"><thead><tr><th>Project</th><th>Agent</th><th>Assigned target</th><th>Users acquired <small>(auto)</small></th><th>Commission <small>(auto)</small></th><th>Progress</th><th>Status</th><th></th></tr></thead>
   <tbody>${list.length?list.map(a=>`<tr>
     <td>${esc(a.project_name)}</td>
     <td><div class="partner"><div class="avatar">${esc(initials(a.partner_name))}</div><div><b>${esc(a.partner_name)}</b><small>#${esc(a.partner_code)}</small></div></div></td>
@@ -436,31 +538,26 @@ function renderAllocationsView(main,allocs,projects,partners){
     <td>${pill(ALLOC_STATUS,a.status)}</td>
     <td class="actions-cell"><button class="btn small" data-edit="${a.id}">Edit</button><button class="btn small danger" data-del="${a.id}">×</button></td>
   </tr>`).join(''):'<tr><td colspan="8" class="empty">No allocations yet.</td></tr>'}</tbody></table></div></div>`;
-  $('#addAlloc').onclick=()=>allocationModal(null,projects,agree,allocs);
+  $('#addAlloc').onclick=()=>allocationModal(null,projects,agree);
   $('#aq').oninput=e=>{aFilterQ=e.target.value;renderAllocationsView(main,allocs,projects,partners)};
-  main.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>allocationModal(allocs.find(x=>x.id===b.dataset.edit),projects,agree,allocs));
+  main.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>allocationModal(allocs.find(x=>x.id===b.dataset.edit),projects,agree));
   main.querySelectorAll('[data-del]').forEach(b=>b.onclick=async()=>{if(!confirm('Delete this allocation?'))return;try{await mutate('allocations/'+b.dataset.del,{method:'DELETE'});toast('Allocation deleted.');renderAdmin()}catch(e){toast(e.message)}});
 }
-function allocationModal(a,projects,agreePartners,existing){
+function allocationModal(a,projects,agreePartners){
   const editable=!!a;
   const ov=modal(`
     <h2>${editable?'Edit allocation':'Add allocation'}</h2>
-    <p>${editable?'Update targets, progress, commission or status.':'Link an agreeing partner to a project with a target and commission.'}</p>
+    <p>${editable?'Only the assigned target, status and note can be changed.':'Link an agreeing agent to a project with a target.'} Acquired users and commission fill <b>automatically</b> from contributions and payments.</p>
     <div class="field"><label>Project</label><select id="lProject" ${editable?'disabled':''}><option value="">Select project…</option>${projects.map(p=>`<option value="${p.id}" ${a?.project_id===p.id?'selected':''}>${esc(p.name)}${p.status!=='active'?' (inactive)':''}</option>`).join('')}</select></div>
     <div class="field"><label>Agent <small>${editable?'':'(only agents with status “Agree” are listed)'}</small></label><select id="lPartner" ${editable?'disabled':''}><option value="">Select agent…</option>${agreePartners.map(p=>`<option value="${p.id}" ${a?.partner_id===p.id?'selected':''}>${esc(p.name)} · #${esc(p.partner_code)}</option>`).join('')}</select></div>
-    <div class="field-row">
-      <div class="field"><label>Assigned target (users)</label><input id="lTarget" type="number" min="0" value="${num(a?.assigned_target)}"></div>
-      <div class="field"><label>Acquired users</label><input id="lAcquired" type="number" min="0" value="${num(a?.acquired_users)}"></div>
-    </div>
-    <div class="field-row">
-      <div class="field"><label>Commission ($)</label><input id="lCommission" type="number" min="0" step="10" value="${num(a?.commission)}"></div>
-      <div class="field"><label>Status</label><select id="lStatus">${Object.entries(ALLOC_STATUS).map(([k,v])=>`<option value="${k}" ${a?.status===k?'selected':''}>${v[0]}</option>`).join('')}</select></div>
-    </div>
+    ${editable?`<div class="kv" style="margin-bottom:12px"><span>Users acquired (auto)</span><b>${num(a.acquired_users).toLocaleString()}</b><span>Commission (auto)</span><b>${money(a.commission)}</b></div>`:''}
+    <div class="field"><label>Assigned target (users)</label><input id="lTarget" type="number" min="0" value="${num(a?.assigned_target)}"></div>
+    <div class="field"><label>Status</label><select id="lStatus">${Object.entries(ALLOC_STATUS).map(([k,v])=>`<option value="${k}" ${a?.status===k?'selected':''}>${v[0]}</option>`).join('')}</select></div>
     <div class="field"><label>Note</label><input id="lNote" value="${esc(a?.note||'')}"></div>
     <div class="modal-actions"><button class="btn" data-close>Cancel</button><button class="btn dark" id="lSave">${editable?'Save changes':'Add allocation'}</button></div>`);
   ov.querySelector('#lSave').onclick=async()=>{
     const projectId=ov.querySelector('#lProject').value,partnerId=ov.querySelector('#lPartner').value;
-    const payload={assigned_target:Math.round(num(ov.querySelector('#lTarget').value)),acquired_users:Math.round(num(ov.querySelector('#lAcquired').value)),commission:num(ov.querySelector('#lCommission').value),status:ov.querySelector('#lStatus').value,note:ov.querySelector('#lNote').value};
+    const payload={assigned_target:Math.round(num(ov.querySelector('#lTarget').value)),status:ov.querySelector('#lStatus').value,note:ov.querySelector('#lNote').value};
     try{
       if(editable)await mutate('allocations/'+a.id,{method:'PATCH',body:JSON.stringify(payload)});
       else await mutate('allocations',{method:'POST',body:JSON.stringify({project_id:projectId,partner_id:partnerId,...payload})});
@@ -469,84 +566,8 @@ function allocationModal(a,projects,agreePartners,existing){
   };
 }
 
-/* ---------- ADMIN: PAYMENTS ---------- */
-let payFilterQ='';
-async function aPayments(main){
-  const c=viewCache.payments;
-  if(c&&c.payments)renderPaymentsView(main,c.payments,c.partners);else main.innerHTML='<p class="muted">Loading…</p>';
-  const bundle=await Promise.all([api('payments'),api('partners')]);
-  viewCache.payments={payments:bundle[0],partners:bundle[1]};
-  if(!typing(main))renderPaymentsView(main,bundle[0],bundle[1]);
-}
-function renderPaymentsView(main,payments,partners){
-  const list=payments.filter(p=>!payFilterQ||(p.partner_name+' '+p.project_name+String(p.transaction_id||'')).toLowerCase().includes(payFilterQ.toLowerCase()));
-  main.innerHTML=`
-  <div class="top"><div class="title"><h1>Payments</h1><p>Agent payouts with automatic available-balance validation.</p></div>
-  <div class="actions"><button class="btn dark" id="addPay">+ Add payment</button></div></div>
-  <div class="section-box"><div class="toolbar"><h2>Payment table</h2><div class="filters"><input id="payq" placeholder="Search partner, project or txn…" value="${esc(payFilterQ)}"></div></div>
-  <div style="overflow:auto"><table class="view-table"><thead><tr><th>Payment ID</th><th>Date</th><th>Agent</th><th>Project</th><th>Amount</th><th>Method</th><th>Transaction</th><th>Status</th><th></th></tr></thead>
-  <tbody>${list.length?list.map(p=>`<tr>
-    <td><b>${esc(String(p.id).slice(0,8).toUpperCase())}</b></td><td>${fmtDate(p.payment_date)}</td>
-    <td><div class="partner"><div class="avatar">${esc(initials(p.partner_name))}</div><div><b>${esc(p.partner_name)}</b><small>#${esc(p.partner_code)}</small></div></div></td>
-    <td>${esc(p.project_name)}</td><td><b>${money(p.amount)}</b></td><td>${esc(p.method)}</td><td>${esc(p.transaction_id||'—')}</td>
-    <td>${pill(PAY_STATUS,p.status)}</td>
-    <td class="actions-cell">${p.status!=='paid'?`<button class="btn small" data-paid="${p.id}">Mark paid</button>`:''}<button class="btn small danger" data-del="${p.id}">×</button></td>
-  </tr>`).join(''):'<tr><td colspan="9" class="empty">No payments yet.</td></tr>'}</tbody></table></div></div>`;
-  $('#addPay').onclick=()=>paymentModal(null,partners);
-  $('#payq').oninput=e=>{payFilterQ=e.target.value;renderPaymentsView(main,payments,partners)};
-  main.querySelectorAll('[data-paid]').forEach(b=>b.onclick=async()=>{try{await mutate('payments/'+b.dataset.paid,{method:'PATCH',body:JSON.stringify({status:'paid'})});toast('Payment marked as paid.');renderAdmin()}catch(e){toast(e.message)}});
-  main.querySelectorAll('[data-del]').forEach(b=>b.onclick=async()=>{if(!confirm('Delete this payment?'))return;try{await mutate('payments/'+b.dataset.del,{method:'DELETE'});toast('Payment deleted.');renderAdmin()}catch(e){toast(e.message)}});
-}
-function paymentModal(pay,partners){
-  const ov=modal(`
-    <h2>Add payment</h2>
-    <p>The agent list shows only agents allocated to the selected project.</p>
-    <div class="field"><label>Select project</label><select id="yProject"><option value="">Select project…</option></select></div>
-    <div class="field"><label>Select agent</label><select id="yPartner" disabled><option value="">Select a project first…</option></select></div>
-    <div class="field"><label>Available balance <small>(read only)</small></label><input id="yBalance" readonly value="—"></div>
-    <div class="field-row">
-      <div class="field"><label>Payment date</label><input id="yDate" type="date" value="${new Date().toISOString().slice(0,10)}"></div>
-      <div class="field"><label>Payment amount ($)</label><input id="yAmount" type="number" min="0" step="10" placeholder="0"></div>
-    </div>
-    <div class="field-row">
-      <div class="field"><label>Payment method</label><select id="yMethod"><option>Bank transfer</option><option>bKash</option><option>Nagad</option><option>Cash</option><option>Other</option></select></div>
-      <div class="field"><label>Status</label><select id="yStatus"><option value="pending">Pending</option><option value="scheduled">Scheduled</option><option value="paid">Paid</option></select></div>
-    </div>
-    <div class="field"><label>Transaction ID</label><input id="yTxn" placeholder="Optional"></div>
-    <div class="modal-actions"><button class="btn" data-close>Cancel</button><button class="btn dark" id="ySave">Add payment</button></div>`);
-  let allocations=[];
-  const projSel=ov.querySelector('#yProject'),partnerSel=ov.querySelector('#yPartner'),bal=ov.querySelector('#yBalance');
-  (async()=>{
-    try{
-      allocations=await api('allocations');
-      const projIds=[...new Set(allocations.map(a=>a.project_id))];
-      const projects=await api('projects');
-      projSel.innerHTML='<option value="">Select project…</option>'+projects.filter(x=>projIds.includes(x.id)).map(x=>`<option value="${x.id}">${esc(x.name)}</option>`).join('');
-    }catch(e){toast(e.message)}
-  })();
-  projSel.onchange=()=>{
-    const opts=allocations.filter(a=>a.project_id===projSel.value);
-    partnerSel.disabled=!projSel.value;
-    partnerSel.innerHTML='<option value="">Select agent…</option>'+opts.map(a=>`<option value="${a.partner_id}">${esc(a.partner_name)} · #${esc(a.partner_code)}</option>`).join('');
-    bal.value='—';
-  };
-  partnerSel.onchange=()=>{
-    const p=partners.find(x=>x.id===partnerSel.value);
-    bal.value=p?money(p.balance):'—';
-  };
-  ov.querySelector('#ySave').onclick=async()=>{
-    const amount=num(ov.querySelector('#yAmount').value);
-    const p=partners.find(x=>x.id===partnerSel.value);
-    if(!projSel.value||!partnerSel.value)return toast('Select a project and agent.');
-    if(p&&amount>p.balance)return toast(`Payment amount cannot exceed available balance (${money(p.balance)}).`);
-    try{
-      await mutate('payments',{method:'POST',body:JSON.stringify({project_id:projSel.value,partner_id:partnerSel.value,payment_date:ov.querySelector('#yDate').value,amount,method:ov.querySelector('#yMethod').value,status:ov.querySelector('#yStatus').value,transaction_id:ov.querySelector('#yTxn').value})});
-      ov.remove();toast('Payment added.');renderAdmin();
-    }catch(e){toast(e.message)}
-  };
-}
-
 /* ---------- ADMIN: CONTRIBUTE ---------- */
+
 async function aContribute(main){
   if(viewCache.contributions)renderAContribute(main,viewCache.contributions);else main.innerHTML='<p class="muted">Loading…</p>';
   const rows=await api('contributions');viewCache.contributions=rows;
@@ -867,8 +888,8 @@ function renderPPayments(main,d){
       <div class="card stat"><div><div class="label">Paid</div><div class="value">${money(d.stats.paid)}</div></div></div>
       <div class="card stat"><div><div class="label">Available Balance</div><div class="value">${money(d.stats.balance)}</div></div></div>
     </div>
-    <div class="section-box"><div class="toolbar"><h2>Payout history</h2></div><div style="overflow:auto"><table class="view-table"><thead><tr><th>Payment ID</th><th>Date</th><th>Project</th><th>Amount</th><th>Method</th><th>Status</th></tr></thead>
-    <tbody>${d.payments.length?d.payments.map(p=>`<tr><td><b>${esc(String(p.id).slice(0,8).toUpperCase())}</b></td><td>${fmtDate(p.payment_date)}</td><td>${esc(p.project_name)}</td><td><b>${money(p.amount)}</b></td><td>${esc(p.method)}</td><td>${pill(PAY_STATUS,p.status)}</td></tr>`).join(''):'<tr><td colspan="6" class="empty">No payments yet.</td></tr>'}</tbody></table></div></div>`;
+    <div class="section-box"><div class="toolbar"><h2>Payout history</h2></div><div style="overflow:auto"><table class="view-table"><thead><tr><th>Payment ID</th><th>Date</th><th>Project</th><th>Amount</th><th>Status</th></tr></thead>
+    <tbody>${d.payments.length?d.payments.map(p=>`<tr><td><b>${esc(String(p.id).slice(0,8).toUpperCase())}</b></td><td>${fmtDate(p.payment_date)}</td><td>${esc(p.project_name)}</td><td><b>${money(p.amount)}</b></td><td>${pill(PAY_STATUS,p.status)}</td></tr>`).join(''):'<tr><td colspan="5" class="empty">No payments yet.</td></tr>'}</tbody></table></div></div>`;
 }
 function renderPPerformance(main,d){
     main.innerHTML=`<div class="top"><div class="title"><h1>My performance</h1><p>Your achievement across all allocated projects.</p></div></div>
