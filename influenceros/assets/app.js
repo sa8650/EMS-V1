@@ -55,6 +55,8 @@ const ALLOC_STATUS={on_target:['On Target','green'],active:['Active','blue'],beh
 const PAY_STATUS={scheduled:['Scheduled','blue'],paid:['Paid','green'],pending:['Pending','yellow']};
 const CONTRIB_STATUS={pending:['Pending','yellow'],accepted:['Accepted','green'],rejected:['Rejected','red']};
 const WD_STATUS={pending:['Pending','yellow'],accepted:['Accepted','green'],rejected:['Rejected','red']};
+const TEAM_TYPE_LABELS={youtuber:'YouTuber',facebook:'Facebook',tiktoker:'TikToker',instagram:'Instagram',telegram:'Telegram',marketing_agent:'Marketing Agent',agency:'Agency'};
+const TEAM_STATUS={active:['Active','green'],inactive:['Inactive','gray']};
 const pill=(map,key)=>{const m=map[key]||[String(key),'gray'];return `<span class="pill ${m[1]}">${m[0]}</span>`};
 const projPill=s=>s==='active'?'<span class="pill green">Active</span>':'<span class="pill gray">Inactive</span>';
 
@@ -85,71 +87,70 @@ function landing(){
 
   <section class="hero">
     <div>
-      <span class="pill blue">Agent &amp; Influencer Management</span>
-      <h1>Run every agent, project and payout in <span>one place</span></h1>
-      <p class="lead">InfluencerOS brings your marketing agents, YouTubers, TikTokers and agencies together — allocate project targets, track acquired users, calculate commissions and pay partners with full balance control.</p>
+      <span class="pill blue">Marketing · Branding · Task Management</span>
+      <h1>Run campaigns, brands &amp; creator tasks in <span>one OS</span></h1>
+      <p class="lead">InfluencerOS is the operating system for marketing teams — plan brand campaigns, onboard creators and agents, assign targets as tasks, collect contribution proofs, approve deliverables and pay commissions without spreadsheets.</p>
       <div class="cta">
         <button class="btn dark big" id="heroLogin">Login to workspace</button>
         <a class="btn big" href="#features">See features</a>
       </div>
       <div class="stats">
-        <div><b>Agents</b><span>Agents &amp; creators</span></div>
-        <div><b>Projects</b><span>Targets &amp; budgets</span></div>
-        <div><b>Allocations</b><span>Per-partner goals</span></div>
-        <div><b>Payments</b><span>Balance-safe payouts</span></div>
+        <div><b>Campaigns</b><span>Launches &amp; brand pushes</span></div>
+        <div><b>Creators</b><span>Agents &amp; their teams</span></div>
+        <div><b>Tasks</b><span>Targets, proofs &amp; approvals</span></div>
+        <div><b>Payouts</b><span>Commissions &amp; withdrawals</span></div>
       </div>
     </div>
     <div class="hero-card">
-      <div class="detail-head"><div><h2 style="font-size:16px">Crypto Exchange Launch</h2><p>25,000 target users · 5 partners</p></div>${pill(ALLOC_STATUS,'on_target')}</div>
-      <div class="meta"><span>Target users</span><b>25,000</b></div>
+      <div class="detail-head"><div><h2 style="font-size:16px">Summer Brand Launch</h2><p>25,000 target users · 5 creators on task</p></div>${pill(ALLOC_STATUS,'on_target')}</div>
+      <div class="meta"><span>Campaign target</span><b>25,000</b></div>
       <div class="progress-lg"><i style="width:74%"></i></div>
-      <div class="meta"><span>74% achieved</span><span>$18,400 budget</span></div>
-      <div class="target-row"><b>Arif Rahman</b><span>Target 7,000</span><span>Reached 5,420</span><span class="right"><b>77%</b></span></div>
-      <div class="target-row"><b>Shakib Karim</b><span>Target 3,000</span><span>Reached 2,800</span><span class="right"><b>93%</b></span></div>
-      <div class="target-row"><b>Trend Makers</b><span>Target 6,000</span><span>Reached 2,980</span><span class="right"><b>50%</b></span></div>
+      <div class="meta"><span>74% of goal reached</span><span>$18,400 budget</span></div>
+      <div class="target-row"><b>Arif · YouTube</b><span>Task 7,000</span><span>Done 5,420</span><span class="right"><b>77%</b></span></div>
+      <div class="target-row"><b>Shakib · Facebook</b><span>Task 3,000</span><span>Done 2,800</span><span class="right"><b>93%</b></span></div>
+      <div class="target-row"><b>Trend Makers · Agency</b><span>Task 6,000</span><span>Done 2,980</span><span class="right"><b>50%</b></span></div>
     </div>
   </section>
 
   <section class="land-section" id="features">
-    <h2>Everything the workflow needs</h2>
-    <p class="sub">A connected data structure — Agent → Allocation → Project → Payment. Nothing is entered twice.</p>
+    <h2>Marketing, branding &amp; task management in one place</h2>
+    <p class="sub">A connected data structure — Agent → Task → Campaign → Proof → Payout. Nothing is entered twice.</p>
     <div class="feat-grid">
-      <div class="feat"><div class="fi">◉</div><h3>Agents</h3><p>Agents, YouTubers, TikTokers, Facebook and Instagram creators and agencies — with 4-digit Agent IDs, social accounts and login access control.</p></div>
-      <div class="feat"><div class="fi">◆</div><h3>Projects</h3><p>Set a budget and goal. Target users, acquired users and used budget are calculated automatically from allocations.</p></div>
-      <div class="feat"><div class="fi">◌</div><h3>Allocations</h3><p>Assign per-partner targets and commissions. Only agents with status “Agree” can be allocated to a project.</p></div>
-      <div class="feat"><div class="fi">$</div><h3>Payments</h3><p>Balance-safe payouts — a payment can never exceed the partner’s available balance. Paid totals update instantly.</p></div>
-      <div class="feat"><div class="fi">◫</div><h3>Performance</h3><p>Achievement % and ranking are computed from acquired vs assigned users across every project.</p></div>
-      <div class="feat"><div class="fi">◎</div><h3>Agent portal</h3><p>Agents log in with Agent ID or email and see only their own projects, payments and performance.</p></div>
+      <div class="feat"><div class="fi">◆</div><h3>Marketing campaigns</h3><p>Plan launches and brand pushes with budgets and clear audience goals. Targets, acquired users and used budget update automatically as work happens.</p></div>
+      <div class="feat"><div class="fi">▣</div><h3>Brand management</h3><p>Keep every brand project organized — briefs, notes, budgets, progress and the exact creators behind each result, all in one branded workspace.</p></div>
+      <div class="feat"><div class="fi">✓</div><h3>Task management</h3><p>Assign per-creator targets as tasks, collect proof files with every contribution, approve or reject with reasons, and track achievement on live progress bars.</p></div>
+      <div class="feat"><div class="fi">◉</div><h3>Creator network</h3><p>Onboard agents, influencers and agencies — or let agents build their own teams with 4-digit codes, social accounts and login access control.</p></div>
+      <div class="feat"><div class="fi">◫</div><h3>Performance analytics</h3><p>Achievement percentages, rankings and project-wise breakdowns are computed automatically from approved contributions.</p></div>
+      <div class="feat"><div class="fi">$</div><h3>Payouts &amp; withdrawals</h3><p>Commissions build up as payments are marked paid; agents withdraw to bKash, Nagad or USDT with admin approval, provider numbers and transaction IDs.</p></div>
     </div>
   </section>
 
   <section class="land-section" id="workflow" style="padding-top:10px">
-    <h2>From partner to payout</h2>
-    <p class="sub">The system keeps financial and performance figures in sync automatically.</p>
-    <div class="card"><div class="target-row"><b>1 · Add agent</b><span>4-digit Agent ID generated</span><span>Social accounts saved</span><span class="right">Login ready</span></div>
-    <div class="target-row"><b>2 · Create project</b><span>Set budget</span><span>Define the goal</span><span class="right">Activate</span></div>
-    <div class="target-row"><b>3 · Allocate</b><span>Assign target users</span><span>Set commission</span><span class="right">Track progress</span></div>
-    <div class="target-row"><b>4 · Pay</b><span>Available balance shown</span><span>Amount validated</span><span class="right">Mark as paid</span></div></div>
+    <h2>From campaign brief to creator payout</h2>
+    <p class="sub">The system keeps tasks, progress and finances in sync automatically.</p>
+    <div class="card"><div class="target-row"><b>1 · Build the network</b><span>Onboard agents &amp; teams</span><span>4-digit codes generated</span><span class="right">Socials saved</span></div>
+    <div class="target-row"><b>2 · Launch the campaign</b><span>Set the brand budget</span><span>Define the goal</span><span class="right">Go active</span></div>
+    <div class="target-row"><b>3 · Assign &amp; track tasks</b><span>Targets per creator</span><span>Proofs submitted</span><span class="right">Approve or reject</span></div>
+    <div class="target-row"><b>4 · Measure &amp; pay</b><span>Achievement auto-ranked</span><span>Commission on paid</span><span class="right">Withdrawals approved</span></div></div>
   </section>
 
   <section class="land-section" id="roles" style="padding-top:10px">
-    <h2>Two roles, one platform</h2>
-    <p class="sub">Administrators run the workspace. Agents get their own restricted dashboard.</p>
+    <h2>Two roles, one workspace</h2>
+    <p class="sub">Administrators run the marketing operation. Agents run their creator business.</p>
     <div class="two">
-      <div class="card"><div class="fi" style="width:38px;height:38px;border-radius:9px;background:#f0f0f0;display:grid;place-items:center;font-size:18px;margin-bottom:12px">▦</div><h3 style="margin:0 0 8px;font-size:15px">Admin dashboard</h3><p style="margin:0;color:#777;font-size:12px;line-height:1.6">Overview KPIs, partner directory, project cards, allocation table, payment processing with balance validation and partner performance ranking.</p></div>
-      <div class="card"><div class="fi" style="width:38px;height:38px;border-radius:9px;background:#f0f0f0;display:grid;place-items:center;font-size:18px;margin-bottom:12px">◎</div><h3 style="margin:0 0 8px;font-size:15px">Agent portal</h3><p style="margin:0;color:#777;font-size:12px;line-height:1.6">Profile with password self-service, allocated projects with progress, earnings KPIs, own payment history and personal performance with rank.</p></div>
+      <div class="card"><div class="fi" style="width:38px;height:38px;border-radius:9px;background:#f0f0f0;display:grid;place-items:center;font-size:18px;margin-bottom:12px">▦</div><h3 style="margin:0 0 8px;font-size:15px">Admin dashboard</h3><p style="margin:0;color:#777;font-size:12px;line-height:1.6">Campaign KPIs, agent directory, task allocations, contribution approvals with proof files, payouts with automatic commissions, withdrawal approvals and a continuous HelpDesk chat with every agent.</p></div>
+      <div class="card"><div class="fi" style="width:38px;height:38px;border-radius:9px;background:#f0f0f0;display:grid;place-items:center;font-size:18px;margin-bottom:12px">◎</div><h3 style="margin:0 0 8px;font-size:15px">Agent portal</h3><p style="margin:0;color:#777;font-size:12px;line-height:1.6">Agents manage their own team, submit task contributions with proofs, follow approvals live, chat with the administrator, track earnings and request withdrawals to their saved payment methods.</p></div>
     </div>
   </section>
 
   <footer class="land-foot"><div class="in">
-    <div>© ${new Date().getFullYear()} <b>InfluencerOS</b> — Agent &amp; Influencer Management</div>
+    <div>© ${new Date().getFullYear()} <b>InfluencerOS</b> — Marketing, Branding &amp; Task Management</div>
     <div class="powered">powered by <b>DoxTox</b></div>
   </div></footer>`;
 
   $('#loginBtn').onclick=loginModal;
   $('#heroLogin').onclick=loginModal;
 }
-
 /* ═══════════ LOGIN ═══════════ */
 async function loginModal(){
   const ov=modal(`
@@ -245,8 +246,7 @@ function renderDashboard(main,d){
   const k=d.kpis;
   const kpi=(l,v,c='')=>`<div class="card stat"><div><div class="label">${l}</div><div class="value">${v}</div>${c?`<div class="change">${c}</div>`:''}</div></div>`;
   main.innerHTML=`
-  <div class="top"><div class="title"><h1>Good ${new Date().getHours()<12?'morning':new Date().getHours()<18?'afternoon':'evening'}, ${esc(state.user.name)}</h1><p>Marketing partner operations, project contribution and payouts.</p></div>
-  <div class="actions"><button class="btn" id="seedBtn">Load demo data</button></div></div>
+  <div class="top"><div class="title"><h1>Good ${new Date().getHours()<12?'morning':new Date().getHours()<18?'afternoon':'evening'}, ${esc(state.user.name)}</h1><p>Marketing agent operations, project contribution and payouts.</p></div></div>
   <div class="kpi-grid">
     ${kpi('Total Agents',k.totalPartners)}
     ${kpi('Active Projects',k.activeProjects)}
@@ -277,10 +277,6 @@ function renderDashboard(main,d){
     </div>
   </div>`;
   warm();
-  $('#seedBtn').onclick=async()=>{
-    if(!confirm('Load demo data? This will REPLACE all existing partners, projects, allocations and payments in the InfluencerOS database.'))return;
-    try{const r=await mutate('demo-seed',{method:'POST'});toast(`Demo data loaded — ${r.partners} agents, ${r.projects} projects. Agent password: ${r.partnerPassword}`);renderAdmin()}catch(e){toast(e.message)}
-  };
 }
 
 /* ---------- ADMIN: PARTNERS ---------- */
@@ -682,7 +678,7 @@ function partnerViewModal(p){
     </tr>`).join(''):'<tr><td colspan="3" class="empty">No payment method saved.</td></tr>'}</tbody></table></div>
     <div class="section-head" style="margin-top:16px"><h2>Edit history</h2><span class="muted">Changes made by the agent</span></div>
     <div style="overflow:auto"><table class="view-table"><thead><tr><th>When</th><th>Field</th><th>Old</th><th>New</th></tr></thead>
-    <tbody>${d.logs.length?d.logs.map(L=>`<tr><td>${fmtDT(L.created_at)}</td><td><b>${esc(L.field)}</b></td><td class="muted" style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(L.old_value||'—')}</td><td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(L.new_value||'—')}</td></tr>`).join(''):'<tr><td colspan="4" class="empty">No profile edits recorded yet.</td></tr>'}</tbody></table></div>`;
+    <tbody>${d.logs.length?d.logs.map(L=>`<tr><td>${fmtDT(L.created_at)}</td><td><b>${esc(L.field)}</b></td><td class="muted" style="max-width:230px;white-space:pre-line;word-break:break-word">${esc(L.old_value||'—')}</td><td style="max-width:230px;white-space:pre-line;word-break:break-word">${esc(L.new_value||'—')}</td></tr>`).join(''):'<tr><td colspan="4" class="empty">No profile edits recorded yet.</td></tr>'}</tbody></table></div>`;
   }).catch(e=>{ov.querySelector('#pvBody').innerHTML=`<div class="empty">${esc(e.message)}</div>`});
 }
 
@@ -805,7 +801,7 @@ function aSettings(main){
 let pView='profile';
 function partnerApp(){
   document.title='InfluencerOS — Agent';
-  const nav=[['profile','◉','Profile'],['contribute','⇧','Contribute'],['projects','◆','Projects'],['payments','$','Payments'],['performance','◫','Performance'],['helpdesk','✉','HelpDesk <span class="navbadge" id="hdBadge" style="display:none"></span>']];
+  const nav=[['profile','◉','Profile'],['team','☰','My Team'],['contribute','⇧','Contribute'],['projects','◆','Projects'],['payments','$','Payments'],['performance','◫','Performance'],['helpdesk','✉','HelpDesk <span class="navbadge" id="hdBadge" style="display:none"></span>']];
   app.innerHTML=`<div class="app">
     <aside class="sidebar">
       <div class="logo">Influence<span>OS</span><small>agent portal · DoxTox</small></div>
@@ -825,6 +821,7 @@ async function renderPartner(){
   try{
     if(pView==='profile')return await pProfile(main);
     clearInterval(hdPoll);
+    if(pView==='team')return await pTeam(main);
     if(pView==='contribute')return await pContribute(main);
     if(pView==='helpdesk')return await pHelpdesk(main);
     if(pView==='projects')return await pOverview(main,'projects');
@@ -975,6 +972,82 @@ function renderPPerformance(main,d){
     </div>
     <div class="section-box"><div class="toolbar"><h2>Project-wise performance</h2></div><div style="overflow:auto"><table class="view-table"><thead><tr><th>Project</th><th>My target</th><th>My acquired</th><th>Achievement</th><th>Commission</th><th>Status</th></tr></thead>
     <tbody>${d.projects.length?d.projects.map(x=>`<tr><td><b>${esc(x.project?.name||'—')}</b></td><td>${num(x.assigned_target).toLocaleString()}</td><td>${num(x.acquired_users).toLocaleString()}</td><td>${x.pct}%</td><td>${money(x.commission)}</td><td>${pill(ALLOC_STATUS,x.status)}</td></tr>`).join(''):'<tr><td colspan="6" class="empty">No allocations yet.</td></tr>'}</tbody></table></div></div>`;
+}
+
+/* ---------- AGENT: MY TEAM ---------- */
+let teamQ='';
+async function pTeam(main){
+  if(viewCache['me/team'])renderTeamView(main,viewCache['me/team']);else main.innerHTML='<p class="muted">Loading…</p>';
+  const rows=await api('me/team');viewCache['me/team']=rows;
+  if(!typing(main))renderTeamView(main,rows);
+}
+function renderTeamView(main,rows){
+  const list=rows.filter(m=>!teamQ||(m.name+' '+m.email+' '+m.code).toLowerCase().includes(teamQ.toLowerCase()));
+  main.innerHTML=`
+  <div class="top"><div class="title"><h1>My Team</h1><p>Manage your team members — codes are generated automatically. Team login arrives in a future update.</p></div>
+  <div class="actions"><button class="btn dark" id="addMember">+ Add team member</button></div></div>
+  <div class="section-box"><div class="toolbar"><h2>Team directory</h2><div class="filters"><input id="teamQ" placeholder="Search name, email or code…" value="${esc(teamQ)}"></div></div>
+  <div style="overflow:auto"><table class="view-table"><thead><tr><th>Code</th><th>Member</th><th>Type</th><th>Phone</th><th>Accounts</th><th>Login access</th><th>Note</th><th>Status</th><th></th></tr></thead>
+  <tbody>${list.length?list.map(m=>`<tr>
+    <td><b>${esc(m.code)}</b></td>
+    <td><div class="partner"><div class="avatar">${esc(initials(m.name))}</div><div><b>${esc(m.name)}</b><small>${esc(m.email)}</small></div></div></td>
+    <td>${TEAM_TYPE_LABELS[m.type]||m.type}</td>
+    <td>${esc(m.phone||'—')}</td>
+    <td>${(m.accounts||[]).length||'—'}</td>
+    <td>${m.login_access?'<span class="pill green">Yes</span>':'<span class="pill gray">No</span>'}</td>
+    <td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(m.note||'')}">${esc(m.note||'—')}</td>
+    <td>${pill(TEAM_STATUS,m.status)}</td>
+    <td class="actions-cell"><button class="btn small" data-tm-edit="${m.id}">Edit</button><button class="btn small danger" data-tm-del="${m.id}">×</button></td>
+  </tr>`).join(''):'<tr><td colspan="9" class="empty">No team members yet.</td></tr>'}</tbody></table></div></div>`;
+  $('#addMember').onclick=()=>teamModal(null);
+  $('#teamQ').oninput=e=>{teamQ=e.target.value;renderTeamView(main,rows)};
+  main.querySelectorAll('[data-tm-edit]').forEach(b=>b.onclick=()=>teamModal(rows.find(x=>x.id===b.dataset.tmEdit)));
+  main.querySelectorAll('[data-tm-del]').forEach(b=>b.onclick=async()=>{
+    if(!confirm('Delete this team member?'))return;
+    try{await mutate('me/team/'+b.dataset.tmDel,{method:'DELETE'});toast('Team member deleted.');renderPartner()}catch(e){toast(e.message)}
+  });
+}
+function teamModal(m){
+  const accounts=(m?.accounts&&m.accounts.length?m.accounts:[{label:'',url:''}]);
+  const ov=modal(`
+    <h2>${m?'Edit team member':'Add team member'}</h2>
+    <p>${m?'Member code #'+esc(m.code):'A unique 4-digit code will be generated automatically. Team login is not enabled yet.'}</p>
+    <div class="field-row">
+      <div class="field"><label>Name</label><input id="tName" value="${esc(m?.name||'')}" placeholder="Full name"></div>
+      <div class="field"><label>Email</label><input id="tEmail" type="email" value="${esc(m?.email||'')}" placeholder="member@email.com"></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Phone number</label><input id="tPhone" value="${esc(m?.phone||'')}" placeholder="+880…"></div>
+      <div class="field"><label>Team type</label><select id="tType">${Object.entries(TEAM_TYPE_LABELS).map(([k,v])=>`<option value="${k}" ${m?.type===k?'selected':''}>${v}</option>`).join('')}</select></div>
+    </div>
+    <div class="field"><label>Social / account information <small>(up to 5)</small></label><div id="tAcctBox"></div>
+      <button class="btn small" id="tAddAcct" type="button">+ Add URL</button></div>
+    <div class="field"><label>Password ${m?'<small>(leave blank to keep current)</small>':'<small>(stored for future team login)</small>'}</label><input id="tPass" type="password" placeholder="Minimum 6 characters"></div>
+    <div class="field-row">
+      <div class="field"><label>Login access</label><select id="tAccess"><option value="yes" ${m?.login_access!==false?'selected':''}>Yes</option><option value="no" ${m?.login_access===false?'selected':''}>No</option></select></div>
+      <div class="field"><label>Status</label><select id="tStatus"><option value="active" ${m?.status!=='inactive'?'selected':''}>Active</option><option value="inactive" ${m?.status==='inactive'?'selected':''}>Inactive</option></select></div>
+    </div>
+    <div class="field"><label>Note</label><textarea id="tNote" rows="2" placeholder="Optional note…">${esc(m?.note||'')}</textarea></div>
+    <div class="modal-actions"><button class="btn" data-close>Cancel</button><button class="btn dark" id="tSave">${m?'Save changes':'Add team member'}</button></div>`);
+  const box=ov.querySelector('#tAcctBox');
+  const addRow=(a={label:'',url:''})=>{
+    if(box.children.length>=5){toast('Maximum 5 account URLs.');return}
+    const r=document.createElement('div');r.className='acct-row';
+    r.innerHTML=`<input placeholder="Label (YouTube…)" value="${esc(a.label)}"><input placeholder="https://…" value="${esc(a.url)}"><button class="btn small danger" type="button">×</button>`;
+    r.querySelector('button').onclick=()=>r.remove();box.append(r);
+  };
+  accounts.forEach(addRow);
+  ov.querySelector('#tAddAcct').onclick=()=>addRow();
+  ov.querySelector('#tSave').onclick=async()=>{
+    const payload={name:ov.querySelector('#tName').value,email:ov.querySelector('#tEmail').value,phone:ov.querySelector('#tPhone').value,
+      type:ov.querySelector('#tType').value,accounts:[...box.querySelectorAll('.acct-row')].map(r=>({label:r.children[0].value,url:r.children[1].value})).filter(a=>a.label.trim()||a.url.trim()),
+      password:ov.querySelector('#tPass').value||undefined,login_access:ov.querySelector('#tAccess').value==='yes',status:ov.querySelector('#tStatus').value,note:ov.querySelector('#tNote').value};
+    const btn=ov.querySelector('#tSave');btn.disabled=true;btn.textContent='Saving…';
+    try{
+      if(m){await mutate('me/team/'+m.id,{method:'PATCH',body:JSON.stringify(payload)});ov.remove();toast('Team member updated.');renderPartner()}
+      else{const r=await mutate('me/team',{method:'POST',body:JSON.stringify(payload)});ov.remove();modal(`<h2>Team member added</h2><p>Share this code with the member — login arrives in a future update.</p><div class="kv"><span>Member code</span><b style="font-size:20px">${esc(r.code)}</b><span>Email</span><b>${esc(r.email)}</b></div><div class="modal-actions"><button class="btn dark" data-close>Done</button></div>`);toast('Team member added — code '+r.code);renderPartner()}
+    }catch(e){toast(e.message);btn.disabled=false;btn.textContent=m?'Save changes':'Add team member'}
+  };
 }
 
 /* ---------- AGENT: PAYMENT METHOD MODAL ---------- */
