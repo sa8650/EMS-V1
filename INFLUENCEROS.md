@@ -21,8 +21,11 @@ influenceros/
   assets/app.js                     Application logic
   supabase/migrations/
     001_influenceros_schema.sql     Database schema (run in a NEW Supabase project)
+    002_contribute_changelog.sql    Contribute tables (run after 001)
+    003_files_vaultium_helpdesk.sql  Multi-file proofs (Vaultium), C-codes, HelpDesk chat
+    004_payment_methods.sql          Agent withdrawal/payment methods (profile)
+    005_withdrawals.sql               Agent withdrawal requests & admin approval
 functions/api/ios/[[path]].js       InfluencerOS API (Cloudflare Pages Function)
-tests/ios-api.test.mjs              API integration tests (45 checks)
 ```
 
 ---
@@ -36,9 +39,28 @@ tests/ios-api.test.mjs              API integration tests (45 checks)
 5. Paste the entire content of `influenceros/supabase/migrations/001_influenceros_schema.sql` and click **Run**.
    - This creates tables `admins`, `partners`, `projects`, `allocations`, `payments`
      plus all enums, and locks them to service-role access only.
-6. Go to **Project Settings → API** and copy:
+6. **Run migrations 002 and 003 too:** paste and run
+   `influenceros/supabase/migrations/002_contribute_changelog.sql` then
+   `influenceros/supabase/migrations/003_files_vaultium_helpdesk.sql`, then
+   `004_payment_methods.sql`, then `005_withdrawals.sql`
+   (multi-file proofs in Vaultium, C-codes, HelpDesk chat, payment methods,
+   withdrawal requests).
+7. Go to **Project Settings → API** and copy:
    - **Project URL** → this is `IOS_SUPABASE_URL`
    - **service_role secret** → this is `IOS_SUPABASE_SERVICE_ROLE_KEY`
+
+## Step 1b — File storage (Vaultium)
+
+Contribution proof files are managed by **Vaultium** — the same R2 bucket as
+EMS (`emsvaultium`, binding `VAULTIUM` in `wrangler.toml`), namespaced under
+the `ios/` prefix. If your Pages project already uses Vaultium for EMS,
+there is **nothing new to set up**. Otherwise create the bucket and bind it:
+**Workers & Pages → your project → Settings → Functions → R2 bucket bindings**
+→ Variable `VAULTIUM`, bucket `emsvaultium`, then redeploy.
+
+Files open through a token-authenticated API route (`/api/ios/files/:id`), so
+proofs are never public. Agents can attach up to 10 files per request
+(each ≤ 10 MB).
 
 ## Step 2 — Generate a session secret
 
@@ -115,31 +137,57 @@ The only new requirement is the three environment variables:
    After saving, a modal shows the generated **4-digit Partner ID**.
 2. **Projects → + Add project** — name, details, budget, note, status.
    Target/acquired/used-budget update automatically from allocations.
-3. **Allocations → + Add allocation** — pick a project and a partner
-   *(only partners with status Agree are listed)*, set assigned target,
-   acquired users, commission and status.
-4. **Payments → + Add payment** — pick a project, then only partners allocated
-   to it appear; their **available balance** is shown read-only and the amount
-   can never exceed it. Use **Mark paid** when the money is transferred —
-   paid totals and balances update automatically.
-5. **Performance** — achievement % (acquired ÷ assigned × 100) and rank for
-   every partner.
-6. **Settings** — reserved for future development.
+3. **Allocations → + Add allocation** — pick a project and an agent
+   *(only agents with status Agree are listed)* and set assigned target,
+   status and note. **Acquired users fill automatically from accepted
+   contributions and commission fills automatically from payments** — neither
+   is entered manually anymore.
+4. **Payments** — two tables side by side. Left: **Payouts** (+ Add payment
+   opens the agent-picker modal: profile, project cards, payment history and
+   a New payment card). Commission is added **only when a payment is Paid**
+   (scheduled/pending add nothing; Mark paid adds it; deleting a paid payment
+   removes it). Right: **Withdraw requests** — every agent withdrawal with
+   method/type/number/address, amount, provider number, trx and status.
+   **Accept** asks for the Provider number + Transaction ID; **Reject** asks
+   for a reason. Columns: Payouts — Payment ID · Date · Agent · Project ·
+   Amount · Status; Withdrawals — ID · Date · Agent · Method · Type · Number/
+   Address · Amount · Provider · Trx · Status.
+5. **Performance** — achievement % and rank (unchanged).
+   Agent side: the Payments page has a **Withdraw** button (available balance,
+   select a saved payment method, amount). Requests lock the balance while
+   pending; the agent's *Paid* KPI shows successfully withdrawn amounts, and
+   their withdrawal table never shows the provider number.
+6. **Contribute** — all agent contribution requests with their **C-codes**
+   (C12345), date & time, agent, project, acquired users, multi-file proof
+   viewer, note, status and review note. **Accept** adds the requested users
+   to the allocation's *Users acquired* automatically; **Reject** stores the
+   optional reason. Every accepted/rejected row stays in both panels.
+7. **Vaultium** — every proof file with name, date & time, size, type,
+   contribution C-code, agent and project; open or delete files.
+8. **HelpDesk** — one continuous conversation per agent (chat bubbles,
+   unread badges, 12s auto-refresh). Reply from the thread modal.
+9. **Settings** — reserved for future development.
 
 **Partner / Agent** (login with Partner ID or email):
 
-- **Profile** — view account info; change password via *Edit profile*.
+- **Contribute** — submit acquired users for an allocated project with up to
+  10 proof files (each ≤ 10 MB, stored in the Vaultium bucket). Each request
+  gets a C-code (C12345) and shows status + admin review note forever.
+- **HelpDesk** — one continuous chat with the administrator (unread badge,
+  auto-refresh).
+- **Profile** — view account info (agent status hidden). *Payment method*
+  lets you save up to 5 withdrawal methods — bKash/Nagad (number + Agent/
+  Personal) or Crypto USDT TRC20 wallet — each editable/deletable in the
+  Payment methods table. *Edit profile* lets
+  the partner change Name, Email, Phone number, Social accounts (up to 5 URLs)
+  and Password (blank = keep current). Every change is written to an admin-only
+  audit log, visible in Admin → Partners → **View** (full profile + edit
+  history table).
 - **Projects** — only the projects allocated to them, with target/progress.
-- **Payments** — Total Earnings / Paid / Available Balance + own payout history.
+- **Payments** — Total Earnings / Paid / Available Balance KPIs (unchanged)
+  + own payout history (Payment ID · Date · Project · Amount · Status).
 - **Performance** — own achievement, rank and project-wise breakdown.
 - **Logout** ends the session and protects the dashboard pages.
-
-## Step 7 — Run the test suite
-
-```bash
-node tests/ios-api.test.mjs      # InfluencerOS API — 45 checks
-node tests/salary-api.test.mjs   # EMS salary API — 24 checks
-```
 
 Both run the real Pages Function code against a mocked Supabase, so no
 database or Cloudflare account is needed.
