@@ -410,12 +410,15 @@ export async function onRequest(context){
     }
 
     if(path==='projects'&&method==='GET'){
-      let projects=await db(env,'projects?select=*&order=created_at.desc');
-      let allocs=await db(env,'allocations?select=project_id,partner_id,assigned_target,acquired_users,commission');
+      let [projects,allocs]=await Promise.all([
+        db(env,'projects?select=*&order=created_at.desc'),
+        db(env,'allocations?select=project_id,partner_id,category,assigned_target,acquired_users,commission')]);
       return json(projects.map(p=>{
         const rows=allocs.filter(a=>a.project_id===p.id);
         const used=rows.reduce((a,x)=>a+num(x.commission),0);
-        return {...p,target_users:rows.reduce((a,x)=>a+num(x.assigned_target),0),acquired_users:rows.reduce((a,x)=>a+num(x.acquired_users),0),used_budget:Math.round(used*100)/100,remaining_budget:Math.round((num(p.budget)-used)*100)/100,partner_count:new Set(rows.map(r=>r.partner_id)).size};
+        const byCat={};
+        for(const a of rows){const c=a.category||'users';byCat[c]??={category:c,target:0,acquired:0};byCat[c].target+=num(a.assigned_target);byCat[c].acquired+=num(a.acquired_users);}
+        return {...p,target_users:rows.reduce((a,x)=>a+num(x.assigned_target),0),acquired_users:rows.reduce((a,x)=>a+num(x.acquired_users),0),categories:Object.values(byCat).sort((a,b)=>a.category<b.category?-1:1),used_budget:Math.round(used*100)/100,remaining_budget:Math.round((num(p.budget)-used)*100)/100,partner_count:new Set(rows.map(r=>r.partner_id)).size};
       }));
     }
     if(path==='projects'&&method==='POST'){
@@ -515,12 +518,12 @@ export async function onRequest(context){
     }
 
     if(path==='performance'&&method==='GET'){
-      let [allocs,partners]=await Promise.all([
-        db(env,'allocations?select=partner_id,assigned_target,acquired_users,project_id'),
-        db(env,'partners?select=id,name,partner_code,type')]);
-      const map={};
-      for(const a of allocs){map[a.partner_id]??={projects:new Set(),assigned:0,acquired:0};map[a.partner_id].projects.add(a.project_id);map[a.partner_id].assigned+=num(a.assigned_target);map[a.partner_id].acquired+=num(a.acquired_users);}
-      const rows=partners.map(p=>({id:p.id,name:p.name,partner_code:p.partner_code,type:p.type,projects:(map[p.id]?.projects.size)||0,assigned:(map[p.id]?.assigned)||0,acquired:(map[p.id]?.acquired)||0,pct:(map[p.id]&&map[p.id].assigned>0)?Math.round(map[p.id].acquired/map[p.id].assigned*100):0})).sort((a,b)=>b.pct-a.pct||b.acquired-a.acquired);
+      let [allocs,partners,projects]=await Promise.all([
+        db(env,'allocations?select=*&order=created_at.asc'),
+        db(env,'partners?select=id,name,partner_code,type'),
+        db(env,'projects?select=id,name')]);
+      const pm=Object.fromEntries(projects.map(x=>[x.id,x.name])),sm=Object.fromEntries(partners.map(x=>[x.id,x]));
+      const rows=allocs.map(a=>({id:a.id,partner_id:a.partner_id,name:sm[a.partner_id]?.name||'—',partner_code:sm[a.partner_id]?.partner_code||'',type:sm[a.partner_id]?.type||'',project_id:a.project_id,project_name:pm[a.project_id]||'—',category:a.category||'users',assigned:num(a.assigned_target),acquired:num(a.acquired_users),commission:num(a.commission),pct:num(a.assigned_target)>0?Math.round(num(a.acquired_users)/num(a.assigned_target)*100):0})).sort((a,b)=>b.pct-a.pct||b.acquired-a.acquired);
       return json(rows.map((r,i)=>({...r,rank:i+1})));
     }
 
