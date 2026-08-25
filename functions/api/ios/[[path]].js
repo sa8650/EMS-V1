@@ -41,6 +41,7 @@ function payToRow(p,projectMap,partnerMap){
   return {...p,partner_name:pr.name||'—',partner_code:pr.partner_code||'',project_name:pg.name||'—'};
 }
 
+const CATEGORIES=['views','clicks','sales','users','shares','reach','leads','profit','installs'];
 const PROOF_TYPES=['image/png','image/jpeg','image/webp','image/gif','application/pdf','text/plain','application/msword','application/vnd.openxmlformats-officedocument.wordprocessingml.document','application/vnd.ms-excel','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'];
 const PROOF_EXT=['png','jpg','jpeg','webp','gif','pdf','txt','doc','docx','xls','xlsx'];
 const acctStr=a=>(Array.isArray(a)&&a.length?a.map(x=>`${x.label||'Account'}: ${x.url||''}`).join(' | '):'(none)');
@@ -202,26 +203,27 @@ export async function onRequest(context){
           profile:null,
           stats,
           withdrawals:myWithdrawals,
-          projects:allocs.map(a=>({id:a.id,project:projectMap[a.project_id]||null,assigned_target:a.assigned_target,acquired_users:a.acquired_users,commission:a.commission,status:a.status,note:a.note,pct:num(a.assigned_target)>0?Math.round(num(a.acquired_users)/num(a.assigned_target)*100):0})),
+          projects:allocs.map(a=>({id:a.id,project:projectMap[a.project_id]||null,category:a.category||'users',assigned_target:a.assigned_target,acquired_users:a.acquired_users,commission:a.commission,status:a.status,note:a.note,pct:num(a.assigned_target)>0?Math.round(num(a.acquired_users)/num(a.assigned_target)*100):0})),
           payments:pays.map(p=>payToRow(p,projectMap,{[s.id]:{name:'',partner_code:''}})),
           performance:{projects:allocs.length,assigned,acquired,pct:assigned>0?Math.round(acquired/assigned*100):0,rank:rank||null,total:ranked.length}
         });
       }
       if(path==='contributions/mine'&&method==='GET'){
-        let [rows,projects,files]=await Promise.all([
+        let [rows,projects,files,allocs]=await Promise.all([
           db(env,`contributions?partner_id=eq.${s.id}&select=*&order=created_at.desc&limit=500`),
           db(env,'projects?select=id,name'),
-          db(env,`contribution_files?partner_id=eq.${s.id}&select=*&order=created_at.asc`)]);
-        const pm=Object.fromEntries(projects.map(x=>[x.id,x.name]));
-        return json(rows.map(c=>({...c,project_name:pm[c.project_id]||'—',files:files.filter(f=>f.contribution_id===c.id)})));
+          db(env,`contribution_files?partner_id=eq.${s.id}&select=*&order=created_at.asc`),
+          db(env,'allocations?select=id,category')]);
+        const pm=Object.fromEntries(projects.map(x=>[x.id,x.name])),am=Object.fromEntries(allocs.map(x=>[x.id,x]));
+        return json(rows.map(c=>({...c,project_name:pm[c.project_id]||'—',category:am[c.allocation_id]?.category||'',files:files.filter(f=>f.contribution_id===c.id)})));
       }
       if(path==='contributions'&&method==='POST'){
         if(!env.VAULTIUM&&!env.IOS_PROOF)return fail('File storage is not configured. Add the VAULTIUM R2 bucket binding.',500);
         const bucket=env.VAULTIUM||env.IOS_PROOF;
         let form;try{form=await request.formData()}catch{return fail('Invalid form submission.')}
-        const projectId=String(form.get('project_id')||''),acquired=Math.round(num(form.get('acquired'))),note=String(form.get('note')||'').slice(0,500);
+        const allocationId=String(form.get('allocation_id')||form.get('project_id')||''),acquired=Math.round(num(form.get('acquired'))),note=String(form.get('note')||'').slice(0,500);
         const files=form.getAll('file').filter(f=>f&&typeof f!=='string'&&f.size);
-        if(!projectId)return fail('Select a project.');
+        if(!allocationId)return fail('Select a project.');
         if(!(acquired>0))return fail('Today acquired must be a number greater than zero.');
         if(!files.length)return fail('At least one proof file (image / file / document) is required.');
         if(files.length>10)return fail('Maximum 10 proof files per request.');
@@ -230,14 +232,14 @@ export async function onRequest(context){
           const ext=String(file.name||'').split('.').pop().toLowerCase();
           if(!PROOF_TYPES.includes(file.type)&&!PROOF_EXT.includes(ext))return fail(`Unsupported proof file type: ${file.name}. Use images, PDF, documents or spreadsheets.`);
         }
-        let [alloc]=await db(env,`allocations?project_id=eq.${projectId}&partner_id=eq.${s.id}&select=id`);
+        let [alloc]=await db(env,`allocations?id=eq.${allocationId}&partner_id=eq.${s.id}&select=id,project_id`);
         if(!alloc)return fail('You have no allocation for the selected project.');
         const id=crypto.randomUUID();
         let code=null;
         for(let i2=0;i2<15;i2++){let c='C'+String(crypto.getRandomValues(new Uint32Array(1))[0]%90000+10000);let used=await db(env,`contributions?code=eq.${c}&select=id`);if(!used.length){code=c;break}}
         if(!code)throw Error('Could not allocate a contribution code. Please retry.');
         // Parent row FIRST — contribution_files has a foreign key to contributions.
-        const [out]=await db(env,'contributions',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({id,code,partner_id:s.id,project_id:projectId,allocation_id:alloc.id,acquired,note:note||null})});
+        const [out]=await db(env,'contributions',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({id,code,partner_id:s.id,project_id:alloc.project_id,allocation_id:alloc.id,acquired,note:note||null})});
         const saved=[];
         try{
           for(let i2=0;i2<files.length;i2++){
@@ -441,16 +443,17 @@ export async function onRequest(context){
     }
     if(path==='allocations'&&method==='POST'){
       let b=await body(request);
-      if(!b.project_id||!b.partner_id)return fail('Project and partner are required.');
+      if(!b.project_id||!b.partner_id)return fail('Project and agent are required.');
       if(!ALLOCATION_STATUSES.includes(b.status))return fail('Invalid allocation status.');
+      const category=CATEGORIES.includes(b.category)?b.category:'users';
       let [project]=await db(env,`projects?id=eq.${b.project_id}&select=id`);
       let [partner]=await db(env,`partners?id=eq.${b.partner_id}&select=id,status`);
       if(!project)return fail('Project not found.',404);
       if(!partner)return fail('Agent not found.',404);
       if(partner.status!=='agree')return fail('Only agents with status “Agree” can be allocated to a project.',400);
-      let dup=await db(env,`allocations?project_id=eq.${b.project_id}&partner_id=eq.${b.partner_id}&select=id`);
-      if(dup.length)return fail('This agent already has an allocation for the project.',409);
-      let [out]=await db(env,'allocations',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({project_id:b.project_id,partner_id:b.partner_id,assigned_target:Math.max(0,Math.round(num(b.assigned_target))),acquired_users:0,commission:0,note:b.note?String(b.note).slice(0,500):null,status:b.status})});
+      let dup=await db(env,`allocations?project_id=eq.${b.project_id}&partner_id=eq.${b.partner_id}&category=eq.${category}&select=id`);
+      if(dup.length)return fail('This agent already has an allocation for this project with the “'+category+'” category.',409);
+      let [out]=await db(env,'allocations',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({project_id:b.project_id,partner_id:b.partner_id,category,assigned_target:Math.max(0,Math.round(num(b.assigned_target))),acquired_users:0,commission:0,note:b.note?String(b.note).slice(0,500):null,status:b.status})});
       return json(out,201);
     }
     if(path.startsWith('allocations/')&&(method==='PATCH'||method==='DELETE')){
@@ -472,13 +475,14 @@ export async function onRequest(context){
     }
     if(path==='payments'&&method==='POST'){
       let b=await body(request);
-      if(!b.project_id||!b.partner_id)return fail('Project and agent are required.');
+      const allocationId=b.allocation_id||b.project_id;
+      if(!allocationId||!b.partner_id)return fail('Project and agent are required.');
       if(!PAYMENT_STATUSES.includes(b.status))return fail('Invalid payment status.');
       let amount=num(b.amount);
       if(amount<=0)return fail('Payment amount must be greater than zero.');
-      let [alloc]=await db(env,`allocations?project_id=eq.${b.project_id}&partner_id=eq.${b.partner_id}&select=*`);
+      let [alloc]=await db(env,`allocations?id=eq.${allocationId}&partner_id=eq.${b.partner_id}&select=*`);
       if(!alloc)return fail('This agent has no allocation for the selected project.',400);
-      const [out]=await db(env,'payments',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({partner_id:b.partner_id,project_id:b.project_id,payment_date:b.payment_date||new Date().toISOString().slice(0,10),amount:Math.round(amount*100)/100,status:b.status})});
+      const [out]=await db(env,'payments',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({partner_id:b.partner_id,project_id:alloc.project_id,payment_date:b.payment_date||new Date().toISOString().slice(0,10),amount:Math.round(amount*100)/100,status:b.status})});
       // Commission is only added when the payment is PAID (scheduled/pending add nothing).
       if(b.status==='paid')await db(env,`allocations?id=eq.${alloc.id}`,{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify({commission:Math.round((num(alloc.commission)+amount)*100)/100,updated_at:new Date().toISOString()})});
       return json(out,201);
@@ -520,7 +524,126 @@ export async function onRequest(context){
       return json(rows.map((r,i)=>({...r,rank:i+1})));
     }
 
+    if(path==='contributions'&&method==='GET'){
+      let [rows,partners,projects,allocs,files]=await Promise.all([
+        db(env,'contributions?select=*&order=created_at.desc&limit=1000'),
+        db(env,'partners?select=id,name,partner_code'),
+        db(env,'projects?select=id,name'),
+        db(env,'allocations?select=id,project_id,category'),
+        db(env,'contribution_files?select=*&order=created_at.asc')]);
+      const pm=Object.fromEntries(projects.map(x=>[x.id,x.name])),sm=Object.fromEntries(partners.map(x=>[x.id,x])),am=Object.fromEntries(allocs.map(x=>[x.id,x]));
+      return json(rows.map(c=>({...c,partner_name:sm[c.partner_id]?.name||'—',partner_code:sm[c.partner_id]?.partner_code||'',project_name:pm[c.project_id]||'—',category:am[c.allocation_id]?.category||'',files:files.filter(f=>f.contribution_id===c.id)})));
+    }
+    if(path.startsWith('contributions/')&&method==='PATCH'){
+      const id=path.split('/')[1];
+      let [c]=await db(env,`contributions?id=eq.${id}&select=*`);
+      if(!c)return fail('Contribution request not found.',404);
+      if(c.status!=='pending')return fail('This contribution request was already '+c.status+'.',409);
+      let b=await body(request),action=String(b.action||'');
+      if(!['accept','reject'].includes(action))return fail('action must be accept or reject.');
+      if(action==='accept'){
+        let [alloc]=c.allocation_id?await db(env,`allocations?id=eq.${c.allocation_id}&select=*`):[];
+        if(!alloc)return fail('The allocation for this contribution no longer exists.',400);
+        await db(env,`allocations?id=eq.${alloc.id}`,{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify({acquired_users:num(alloc.acquired_users)+c.acquired,updated_at:new Date().toISOString()})});
+      }
+      const [out]=await db(env,`contributions?id=eq.${id}`,{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify({status:action==='accept'?'accepted':'rejected',reviewed_at:new Date().toISOString(),reviewed_by:s.id,review_note:b.note?String(b.note).slice(0,500):null,updated_at:new Date().toISOString()})});
+      return json(out);
+    }
+
+    if(/^partners\/[^/]+\/logs$/.test(path)&&method==='GET'){
+      const id=path.split('/')[1];
+      let [logs,partner,paymentMethods]=await Promise.all([
+        db(env,`partner_logs?partner_id=eq.${id}&select=*&order=created_at.desc&limit=200`),
+        db(env,`partners?id=eq.${id}&select=*`),
+        db(env,`payment_methods?partner_id=eq.${id}&select=*&order=created_at.asc`)]);
+      if(!partner.length)return fail('Agent not found.',404);
+      return json({partner:publicPartner(partner[0]),logs,paymentMethods});
+    }
+
+    if(path==='vaultium'&&method==='GET'){
+      let [files,contributions,partners,projects,allocs]=await Promise.all([
+        db(env,'contribution_files?select=*&order=created_at.desc&limit=2000'),
+        db(env,'contributions?select=id,code,project_id,partner_id,created_at,allocation_id'),
+        db(env,'partners?select=id,name,partner_code'),
+        db(env,'projects?select=id,name'),
+        db(env,'allocations?select=id,category')]);
+      const pm=Object.fromEntries(projects.map(x=>[x.id,x.name])),sm=Object.fromEntries(partners.map(x=>[x.id,x])),am=Object.fromEntries(allocs.map(x=>[x.id,x]));
+      return json(files.map(f=>{
+        const c=contributions.find(x=>x.id===f.contribution_id);
+        return {...f,contribution_code:c?.code||'',category:am[c?.allocation_id]?.category||'',project_name:c?(pm[c.project_id]||'—'):'—',partner_name:sm[f.partner_id]?.name||'—',partner_code:sm[f.partner_id]?.partner_code||''};
+      }));
+    }
+    if(/^files\/[^/]+$/.test(path)&&method==='DELETE'){
+      let [f]=await db(env,`contribution_files?id=eq.${path.split('/')[1]}&select=*`);
+      if(!f)return fail('File not found.',404);
+      if(env.VAULTIUM)await env.VAULTIUM.delete(f.r2_key).catch(()=>{});
+      else if(env.IOS_PROOF)await env.IOS_PROOF.delete(f.r2_key).catch(()=>{});
+      await db(env,`contribution_files?id=eq.${f.id}`,{method:'DELETE'});
+      return json({ok:true});
+    }
+
+    if(path==='helpdesk'&&method==='GET'&&s.role==='admin'){
+      let [rows,partners]=await Promise.all([
+        db(env,'helpdesk_messages?select=*&order=created_at.desc&limit=5000'),
+        db(env,'partners?select=id,name,partner_code')]);
+      const sm=Object.fromEntries(partners.map(x=>[x.id,x]));
+      const threads={};
+      for(const m of rows){
+        threads[m.partner_id]??={partner_id:m.partner_id,partner_name:sm[m.partner_id]?.name||'—',partner_code:sm[m.partner_id]?.partner_code||'',last:'',last_at:m.created_at,unread:0,total:0};
+        const t=threads[m.partner_id];
+        t.total++;
+        if(m.sender_type==='agent'&&!m.read_by_admin)t.unread++;
+        if(!t.last_at||new Date(m.created_at)>=new Date(t.last_at)){t.last=m.body;t.last_at=m.created_at}
+      }
+      const list=Object.values(threads).sort((a,b)=>new Date(b.last_at)-new Date(a.last_at));
+      return json({threads:list,totalUnread:list.reduce((a,t)=>a+t.unread,0)});
+    }
+    if(/^helpdesk\/[^/]+$/.test(path)&&method==='GET'&&s.role==='admin'){
+      const pid=path.split('/')[1];
+      let [rows,partner]=await Promise.all([
+        db(env,`helpdesk_messages?partner_id=eq.${pid}&select=*&order=created_at.asc&limit=1000`),
+        db(env,`partners?id=eq.${pid}&select=id,name,partner_code`)]);
+      if(!partner.length)return fail('Agent not found.',404);
+      await db(env,`helpdesk_messages?partner_id=eq.${pid}&sender_type=eq.agent&read_by_admin=eq.false`,{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify({read_by_admin:true})});
+      return json({partner:partner[0],messages:rows.map(m=>({...m,read_by_admin:true}))});
+    }
+    if(/^helpdesk\/[^/]+$/.test(path)&&method==='POST'&&s.role==='admin'){
+      const pid=path.split('/')[1];
+      let b=await body(request),text=String(b.body||'').trim();
+      if(!text)return fail('Message cannot be empty.');
+      let [partner]=await db(env,`partners?id=eq.${pid}&select=id`);
+      if(!partner)return fail('Agent not found.',404);
+      const [out]=await db(env,'helpdesk_messages',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({partner_id:pid,sender_type:'admin',sender_id:s.id,body:text.slice(0,2000),read_by_admin:true})});
+      return json(out,201);
+    }
+
+    if(path==='withdrawals'&&method==='GET'){
+      let [rows,partners]=await Promise.all([
+        db(env,'withdrawals?select=*&order=created_at.desc&limit=1000'),
+        db(env,'partners?select=id,name,partner_code')]);
+      const sm=Object.fromEntries(partners.map(x=>[x.id,x]));
+      return json(rows.map(w=>({...w,partner_name:sm[w.partner_id]?.name||'—',partner_code:sm[w.partner_id]?.partner_code||''})));
+    }
+    if(path.startsWith('withdrawals/')&&method==='PATCH'){
+      let id=path.split('/')[1];
+      let [w]=await db(env,`withdrawals?id=eq.${id}&select=*`);
+      if(!w)return fail('Withdrawal request not found.',404);
+      if(w.status!=='pending')return fail('This withdrawal was already '+w.status+'.',409);
+      let b=await body(request),action=String(b.action||'');
+      if(action==='accept'){
+        const provider=String(b.provider_number||'').trim(),trx=String(b.trx||'').trim();
+        if(!provider)return fail('Provider number is required.',400);
+        if(!trx)return fail('Transaction ID (trx) is required.',400);
+        const [out]=await db(env,`withdrawals?id=eq.${id}`,{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify({status:'accepted',provider_number:provider.slice(0,60),trx:trx.slice(0,100),updated_at:new Date().toISOString()})});
+        return json(out);
+      }
+      if(action==='reject'){
+        const [out]=await db(env,`withdrawals?id=eq.${id}`,{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify({status:'rejected',reject_reason:b.reason?String(b.reason).slice(0,500):null,updated_at:new Date().toISOString()})});
+        return json(out);
+      }
+      return fail('action must be accept or reject.');
+    }
+
     return fail('Not found.',404);
   }catch(e){return fail(e.message||'Unexpected server error.',500)}
 }
-
