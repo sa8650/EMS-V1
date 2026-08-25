@@ -381,7 +381,7 @@ export async function onRequest(context){
       if(partner.status!=='agree')return fail('Only agents with status “Agree” can be allocated to a project.',400);
       let dup=await db(env,`allocations?project_id=eq.${b.project_id}&partner_id=eq.${b.partner_id}&select=id`);
       if(dup.length)return fail('This agent already has an allocation for the project.',409);
-      let [out]=await db(env,'allocations',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({project_id:b.project_id,partner_id:b.partner_id,assigned_target:Math.max(0,Math.round(num(b.assigned_target))),acquired_users:Math.max(0,Math.round(num(b.acquired_users))),commission:num(b.commission),note:b.note?String(b.note).slice(0,500):null,status:b.status})});
+      let [out]=await db(env,'allocations',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({project_id:b.project_id,partner_id:b.partner_id,assigned_target:Math.max(0,Math.round(num(b.assigned_target))),acquired_users:0,commission:0,note:b.note?String(b.note).slice(0,500):null,status:b.status})});
       return json(out,201);
     }
     if(path.startsWith('allocations/')&&(method==='PATCH'||method==='DELETE')){
@@ -389,10 +389,9 @@ export async function onRequest(context){
       if(method==='DELETE'){await db(env,`allocations?id=eq.${id}`,{method:'DELETE'});return json({ok:true})}
       let b=await body(request),patch={updated_at:new Date().toISOString()};
       if(b.assigned_target!==undefined)patch.assigned_target=Math.max(0,Math.round(num(b.assigned_target)));
-      if(b.acquired_users!==undefined)patch.acquired_users=Math.max(0,Math.round(num(b.acquired_users)));
-      if(b.commission!==undefined)patch.commission=num(b.commission);
       if(b.note!==undefined)patch.note=String(b.note).slice(0,500);
       if(b.status!==undefined){if(!ALLOCATION_STATUSES.includes(b.status))return fail('Invalid allocation status.');patch.status=b.status}
+      // acquired_users & commission are automated (contributions & payments) and never edited manually
       let [out]=await db(env,`allocations?id=eq.${id}`,{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify(patch)});
       return json(out);
     }
@@ -404,32 +403,33 @@ export async function onRequest(context){
     }
     if(path==='payments'&&method==='POST'){
       let b=await body(request);
-      if(!b.project_id||!b.partner_id)return fail('Project and partner are required.');
+      if(!b.project_id||!b.partner_id)return fail('Project and agent are required.');
       if(!PAYMENT_STATUSES.includes(b.status))return fail('Invalid payment status.');
       let amount=num(b.amount);
       if(amount<=0)return fail('Payment amount must be greater than zero.');
-      let alloc=await db(env,`allocations?project_id=eq.${b.project_id}&partner_id=eq.${b.partner_id}&select=id`);
-      if(!alloc.length)return fail('This agent has no allocation for the selected project.',400);
-      let {stats}=await partnerStats(env,[b.partner_id]);
-      const balance=stats[b.partner_id]?.balance??0;
-      if(amount>balance)return fail(`Payment amount cannot exceed the agent's available balance (${balance.toFixed(2)}).`,400);
-      let [out]=await db(env,'payments',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({partner_id:b.partner_id,project_id:b.project_id,payment_date:b.payment_date||new Date().toISOString().slice(0,10),amount:Math.round(amount*100)/100,method:String(b.method||'bank').slice(0,40),transaction_id:b.transaction_id?String(b.transaction_id).slice(0,100):null,status:b.status,note:b.note?String(b.note).slice(0,500):null})});
+      let [alloc]=await db(env,`allocations?project_id=eq.${b.project_id}&partner_id=eq.${b.partner_id}&select=*`);
+      if(!alloc)return fail('This agent has no allocation for the selected project.',400);
+      const [out]=await db(env,'payments',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({partner_id:b.partner_id,project_id:b.project_id,payment_date:b.payment_date||new Date().toISOString().slice(0,10),amount:Math.round(amount*100)/100,status:b.status})});
+      // The payment amount becomes commission for that project allocation.
+      await db(env,`allocations?id=eq.${alloc.id}`,{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify({commission:Math.round((num(alloc.commission)+amount)*100)/100,updated_at:new Date().toISOString()})});
       return json(out,201);
     }
     if(path.startsWith('payments/')&&(method==='PATCH'||method==='DELETE')){
       let id=path.split('/')[1];
       let [existing]=await db(env,`payments?id=eq.${id}&select=*`);
       if(!existing)return fail('Payment not found.',404);
-      if(method==='DELETE'){await db(env,`payments?id=eq.${id}`,{method:'DELETE'});return json({ok:true})}
+      if(method==='DELETE'){
+        let [alloc]=await db(env,`allocations?project_id=eq.${existing.project_id}&partner_id=eq.${existing.partner_id}&select=*`);
+        if(alloc)await db(env,`allocations?id=eq.${alloc.id}`,{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify({commission:Math.max(0,Math.round((num(alloc.commission)-num(existing.amount))*100)/100),updated_at:new Date().toISOString()})});
+        await db(env,`payments?id=eq.${id}`,{method:'DELETE'});
+        return json({ok:true});
+      }
       let b=await body(request),patch={updated_at:new Date().toISOString()};
       if(b.status!==undefined){
         if(!PAYMENT_STATUSES.includes(b.status))return fail('Invalid payment status.');
         if(b.status!=='paid'&&existing.status==='paid')return fail('A paid payment cannot be reverted. Delete it instead.',400);
         patch.status=b.status;
       }
-      if(b.transaction_id!==undefined)patch.transaction_id=String(b.transaction_id).slice(0,100);
-      if(b.payment_date!==undefined)patch.payment_date=b.payment_date;
-      if(b.note!==undefined)patch.note=String(b.note).slice(0,500);
       let [out]=await db(env,`payments?id=eq.${id}`,{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify(patch)});
       return json(out);
     }
