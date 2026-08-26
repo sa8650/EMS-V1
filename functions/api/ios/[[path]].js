@@ -15,7 +15,7 @@ async function check(password,stored){let [,i,s,v]=stored.split('$'),iterations=
 function db(env,path,opt={}){return fetch(env.IOS_SUPABASE_URL+'/rest/v1/'+path,{...opt,headers:{apikey:env.IOS_SUPABASE_SERVICE_ROLE_KEY,Authorization:'Bearer '+env.IOS_SUPABASE_SERVICE_ROLE_KEY,Prefer:'return=representation',...(opt.headers||{})}}).then(async r=>{let x=await r.json().catch(()=>null);if(!r.ok)throw Error(x?.message||'Database request failed');return x;});}
 async function body(req){try{return await req.json()}catch{return {}}}
 const num=x=>Number(x)||0;
-const PARTNER_TYPES=['youtuber','facebook','tiktoker','instagram','marketing_agent','agency'];
+const PARTNER_TYPES=['youtuber','facebook','tiktoker','instagram','telegram','marketing_agent','agency'];
 const PARTNER_STATUSES=['disagree','agree','not_response','waiting'];
 const ALLOCATION_STATUSES=['on_target','active','behind','inactive'];
 const PAYMENT_STATUSES=['scheduled','paid','pending'];
@@ -81,6 +81,20 @@ export async function onRequest(context){
       return json({token:await token({id:p.id,role:'partner',exp:Math.floor(Date.now()/1000)+28800},env.IOS_SESSION_SECRET),user:publicPartner(p)});
     }
 
+    if(path==='auth/partner/register'&&method==='POST'){
+      let b=await body(request),email=String(b.email||'').trim().toLowerCase();
+      if(!b.name||!email||!b.phone||!b.address)return fail('Name, address, email and phone are required.');
+      if(!PARTNER_TYPES.includes(b.type))return fail('Invalid type.');
+      if(!b.password||String(b.password).length<6)return fail('Password must be at least 6 characters.');
+      let exists=await db(env,`partners?email=eq.${encodeURIComponent(email)}&select=id`);
+      if(exists.length)return fail('An account with this email already exists. Try signing in.',409);
+      let partnerCode=null;
+      for(let i=0;i<15;i++){let c=String(crypto.getRandomValues(new Uint32Array(1))[0]%9000+1000);let used=await db(env,`partners?partner_code=eq.${c}&select=id`);if(!used.length){partnerCode=c;break}}
+      if(!partnerCode)throw Error('Could not allocate a 4-digit Agent ID. Please retry.');
+      const [out]=await db(env,'partners',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({partner_code:partnerCode,name:String(b.name).slice(0,120),email,phone:String(b.phone).slice(0,40),address:String(b.address).slice(0,300),type:b.type,accounts:[],password_hash:await hash(String(b.password)),login_access:true,status:'waiting',note:'Self-registered account — set status to Agree after review.'})});
+      return json({token:await token({id:out.id,role:'partner',exp:Math.floor(Date.now()/1000)+28800},env.IOS_SESSION_SECRET),user:publicPartner(out),role:'partner'});
+    }
+
     /* ---------- everything below requires a session ---------- */
     let s=await session(request,env.IOS_SESSION_SECRET);
     if(!s)return fail('Please sign in.',401);
@@ -120,6 +134,7 @@ export async function onRequest(context){
       if(path==='me/profile'&&method==='POST'){
         let b=await body(request),email=String(b.email||'').trim().toLowerCase();
         if(!b.name||!email||!b.phone)return fail('Name, email and phone are required.');
+        if(b.address!==undefined&&String(b.address).length>300)return fail('Address is too long.');
         if(b.password&&String(b.password).length<6)return fail('Password must be at least 6 characters.');
         let dup=await db(env,`partners?email=eq.${encodeURIComponent(email)}&select=id`);
         if(dup.length&&dup[0].id!==s.id)return fail('An agent with this email already exists.',409);
@@ -127,16 +142,17 @@ export async function onRequest(context){
         if(accounts.length>5)return fail('Maximum 5 account URLs.');
         const [old]=await db(env,`partners?id=eq.${s.id}&select=*`);
         if(!old)return fail('Agent not found.',404);
-        let patch={name:String(b.name).slice(0,120),email,phone:String(b.phone).slice(0,40),accounts,updated_at:new Date().toISOString()};
+        let patch={name:String(b.name).slice(0,120),email,phone:String(b.phone).slice(0,40),address:b.address!==undefined?String(b.address).slice(0,300):(old.address||null),accounts,updated_at:new Date().toISOString()};
         if(b.password)patch.password_hash=await hash(String(b.password));
         const [out]=await db(env,`partners?id=eq.${s.id}`,{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify(patch)});
         const logs=[];
         if(old.name!==patch.name)logs.push({field:'Name',old_value:String(old.name||''),new_value:patch.name});
         if((old.email||'')!==patch.email)logs.push({field:'Email',old_value:String(old.email||''),new_value:patch.email});
         if(String(old.phone||'')!==patch.phone)logs.push({field:'Phone number',old_value:String(old.phone||''),new_value:patch.phone});
+        if(String(old.address||'')!==String(patch.address||''))logs.push({field:'Address',old_value:String(old.address||''),new_value:String(patch.address||'')});
         if(JSON.stringify(old.accounts||[])!==JSON.stringify(accounts)){
           const norm=a=>String(a.label||'Account').trim().toLowerCase();
-          const oldList=old.accounts||[],newList=accounts;
+          const oldList=Array.isArray(old.accounts)?old.accounts:[],newList=accounts;
           const oldMap=new Map(oldList.map(a=>[norm(a),String(a.url||'')])),newMap=new Map(newList.map(a=>[norm(a),String(a.url||'')]));
           const oldLabel=new Map(oldList.map(a=>[norm(a),a.label||'Account'])),newLabel=new Map(newList.map(a=>[norm(a),a.label||'Account']));
           const removed=[],added=[],changed=[];
@@ -423,14 +439,14 @@ export async function onRequest(context){
       let partnerCode=null;
       for(let i=0;i<15;i++){let code=String(crypto.getRandomValues(new Uint32Array(1))[0]%9000+1000);let used=await db(env,`partners?partner_code=eq.${code}&select=id`);if(!used.length){partnerCode=code;break}}
       if(!partnerCode)throw Error('Could not allocate a 4-digit Partner ID. Please retry.');
-      let [out]=await db(env,'partners',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({partner_code:partnerCode,name:String(b.name).slice(0,120),email,phone:String(b.phone).slice(0,40),type:b.type,accounts:cleanAccounts(b.accounts),password_hash:await hash(String(b.password)),login_access:b.login_access!==false,status:b.status,note:b.note?String(b.note).slice(0,500):null})});
+      let [out]=await db(env,'partners',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({partner_code:partnerCode,name:String(b.name).slice(0,120),email,phone:String(b.phone).slice(0,40),address:b.address?String(b.address).slice(0,300):null,type:b.type,accounts:cleanAccounts(b.accounts),password_hash:await hash(String(b.password)),login_access:b.login_access!==false,status:b.status,note:b.note?String(b.note).slice(0,500):null})});
       return json(publicPartner(out),201);
     }
     if(path.startsWith('partners/')&&method==='PATCH'){
       let id=path.split('/')[1],[existing]=await db(env,`partners?id=eq.${id}&select=*`);
       if(!existing)return fail('Agent not found.',404);
       let b=await body(request),patch={updated_at:new Date().toISOString()};
-      for(const k of ['name','phone','note'])if(b[k]!==undefined)patch[k]=String(b[k]).slice(0,500);
+      for(const k of ['name','phone','note','address'])if(b[k]!==undefined)patch[k]=String(b[k]).slice(0,500);
       if(b.email!==undefined){let email=String(b.email).trim().toLowerCase();if(!email)return fail('Email cannot be empty.');let dup=await db(env,`partners?email=eq.${encodeURIComponent(email)}&select=id`);if(dup.length&&dup[0].id!==id)return fail('An agent with this email already exists.',409);patch.email=email;}
       if(b.type!==undefined){if(!PARTNER_TYPES.includes(b.type))return fail('Invalid partner type.');patch.type=b.type}
       if(b.status!==undefined){if(!PARTNER_STATUSES.includes(b.status))return fail('Invalid partner status.');patch.status=b.status}
