@@ -304,6 +304,43 @@ export async function onRequest(context){
         const [out]=await db(env,`team_members?id=eq.${id}`,{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify(patch)});
         return json(publicMember(out));
       }
+      if(path==='me/allocations'&&method==='GET'){
+        let [allocs,projects,teamAllocs,members]=await Promise.all([
+          db(env,`allocations?partner_id=eq.${s.id}&select=*&order=created_at.desc`),
+          db(env,'projects?select=id,name'),
+          db(env,`team_allocations?partner_id=eq.${s.id}&select=*&order=created_at.desc`),
+          db(env,`team_members?partner_id=eq.${s.id}&select=id,name,code`)]);
+        const pm=Object.fromEntries(projects.map(x=>[x.id,x.name])),mm=Object.fromEntries(members.map(x=>[x.id,x]));
+        return json({mine:allocs.map(a=>({...a,project_name:pm[a.project_id]||'—'})),
+          team:teamAllocs.map(t=>({...t,project_name:pm[t.project_id]||'—',member_name:mm[t.team_member_id]?.name||'—',member_code:mm[t.team_member_id]?.code||''}))});
+      }
+      if(path==='me/team-allocations'&&method==='POST'){
+        let b=await body(request);
+        if(!b.team_member_id||!b.project_id)return fail('Team member and project are required.');
+        if(!ALLOCATION_STATUSES.includes(b.status))return fail('Invalid allocation status.');
+        const category=CATEGORIES.includes(b.category)?b.category:'users';
+        let [member]=await db(env,`team_members?id=eq.${b.team_member_id}&partner_id=eq.${s.id}&select=id`);
+        if(!member)return fail('Team member not found in your team.',404);
+        let own=await db(env,`allocations?partner_id=eq.${s.id}&project_id=eq.${b.project_id}&select=id`);
+        if(!own.length)return fail('You have no allocation on this project yet, so you cannot assign it to a team member.',400);
+        let dup=await db(env,`team_allocations?partner_id=eq.${s.id}&team_member_id=eq.${b.team_member_id}&project_id=eq.${b.project_id}&category=eq.${category}&select=id`);
+        if(dup.length)return fail('This team member already has this project with the “'+category+'” category.',409);
+        const [out]=await db(env,'team_allocations',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({partner_id:s.id,team_member_id:b.team_member_id,project_id:b.project_id,category,assigned_target:Math.max(0,Math.round(num(b.assigned_target))),acquired_users:0,note:b.note?String(b.note).slice(0,500):null,status:b.status})});
+        return json(out,201);
+      }
+      if(path.startsWith('me/team-allocations/')&&(method==='PATCH'||method==='DELETE')){
+        const id=path.split('/')[2];
+        let [row]=await db(env,`team_allocations?id=eq.${id}&partner_id=eq.${s.id}&select=*`);
+        if(!row)return fail('Team allocation not found.',404);
+        if(method==='DELETE'){await db(env,`team_allocations?id=eq.${id}`,{method:'DELETE'});return json({ok:true})}
+        let b=await body(request),patch={updated_at:new Date().toISOString()};
+        if(b.assigned_target!==undefined)patch.assigned_target=Math.max(0,Math.round(num(b.assigned_target)));
+        if(b.acquired_users!==undefined)patch.acquired_users=Math.max(0,Math.round(num(b.acquired_users)));
+        if(b.note!==undefined)patch.note=String(b.note).slice(0,500);
+        if(b.status!==undefined){if(!ALLOCATION_STATUSES.includes(b.status))return fail('Invalid allocation status.');patch.status=b.status}
+        const [out]=await db(env,`team_allocations?id=eq.${id}`,{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify(patch)});
+        return json(out);
+      }
       if(path==='withdrawals'&&method==='GET'){
         return json(await db(env,`withdrawals?partner_id=eq.${s.id}&select=*&order=created_at.desc`));
       }
