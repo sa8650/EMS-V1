@@ -17,7 +17,7 @@ const dropCache=()=>{for(const k in viewCache)delete viewCache[k]};
 const mutate=async(path,opt={})=>{const r=await api(path,opt);dropCache();return r};
 const warm=()=>{
   ['overview','partners','projects','performance','contributions'].forEach(k=>{if(!(k in viewCache))api(k).then(d=>viewCache[k]=d).catch(()=>{})});
-  if(!('allocations' in viewCache))Promise.all([api('allocations'),api('projects'),api('partners')]).then(b=>viewCache.allocations={allocs:b[0],projects:b[1],partners:b[2]}).catch(()=>{});
+  if(!('allocations' in viewCache))Promise.all([api('allocations'),api('projects'),api('partners'),api('team-allocations')]).then(b=>viewCache.allocations={allocs:b[0],projects:b[1],partners:b[2],team:b[3]}).catch(()=>{});
   if(!('payments' in viewCache))Promise.all([api('payments'),api('partners'),api('allocations'),api('withdrawals')]).then(b=>viewCache.payments={payments:b[0],partners:b[1],allocations:b[2],withdrawals:b[3]}).catch(()=>{});
 };
 const typing=main=>main.contains(document.activeElement)&&/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName);
@@ -556,12 +556,12 @@ function paymentModal(partners,allocations,payments){
 let aFilterQ='';
 async function aAllocations(main){
   const c=viewCache.allocations;
-  if(c&&c.allocs)renderAllocationsView(main,c.allocs,c.projects,c.partners);else main.innerHTML='<p class="muted">Loading…</p>';
-  const bundle=await Promise.all([api('allocations'),api('projects'),api('partners')]);
-  viewCache.allocations={allocs:bundle[0],projects:bundle[1],partners:bundle[2]};
-  if(!typing(main))renderAllocationsView(main,bundle[0],bundle[1],bundle[2]);
+  if(c&&c.allocs)renderAllocationsView(main,c.allocs,c.projects,c.partners,c.team||[]);else main.innerHTML='<p class="muted">Loading…</p>';
+  const bundle=await Promise.all([api('allocations'),api('projects'),api('partners'),api('team-allocations')]);
+  viewCache.allocations={allocs:bundle[0],projects:bundle[1],partners:bundle[2],team:bundle[3]};
+  if(!typing(main))renderAllocationsView(main,bundle[0],bundle[1],bundle[2],bundle[3]);
 }
-function renderAllocationsView(main,allocs,projects,partners){
+function renderAllocationsView(main,allocs,projects,partners,teamAllocs=[]){
   const list=allocs.filter(a=>!aFilterQ||(a.partner_name+' '+a.project_name).toLowerCase().includes(aFilterQ.toLowerCase()));
   const agree=partners.filter(p=>p.status==='agree');
   main.innerHTML=`
@@ -577,7 +577,18 @@ function renderAllocationsView(main,allocs,projects,partners){
     <td style="min-width:120px"><div style="font-size:10px;margin-bottom:4px">${pct(num(a.acquired_users),num(a.assigned_target))}%</div><div class="progress"><i style="width:${pct(num(a.acquired_users),num(a.assigned_target))}%"></i></div></td>
     <td>${pill(ALLOC_STATUS,a.status)}</td>
     <td class="actions-cell"><button class="btn small" data-edit="${a.id}">Edit</button><button class="btn small danger" data-del="${a.id}">×</button></td>
-  </tr>`).join(''):'<tr><td colspan="8" class="empty">No allocations yet.</td></tr>'}</tbody></table></div></div>`;
+  </tr>`).join(''):'<tr><td colspan="9" class="empty">No allocations yet.</td></tr>'}</tbody></table></div></div>
+  <div class="section-box"><div class="toolbar"><h2>Agent team allocations</h2><span class="muted">How agents split their targets among their team members</span></div>
+  <div style="overflow:auto"><table class="view-table"><thead><tr><th>Project</th><th>Category</th><th>Agent</th><th>Team member</th><th>Assigned target</th><th>Acquired</th><th>Status</th></tr></thead>
+  <tbody>${teamAllocs.length?teamAllocs.map(t=>`<tr>
+    <td>${esc(t.project_name)}</td>
+    <td><span class="pill blue">${catLabel(t.category)}</span></td>
+    <td><div class="partner"><div class="avatar">${esc(initials(t.partner_name))}</div><div><b>${esc(t.partner_name)}</b><small>#${esc(t.partner_code)}</small></div></div></td>
+    <td><div class="partner"><div class="avatar">${esc(initials(t.member_name))}</div><div><b>${esc(t.member_name)}</b><small>#${esc(t.member_code)}</small></div></div></td>
+    <td>${num(t.assigned_target).toLocaleString()}</td>
+    <td><b>${num(t.acquired_users).toLocaleString()}</b></td>
+    <td>${pill(ALLOC_STATUS,t.status)}</td>
+  </tr>`).join(''):'<tr><td colspan="7" class="empty">No team allocations yet.</td></tr>'}</tbody></table></div></div>`;
   $('#addAlloc').onclick=()=>allocationModal(null,projects,agree);
   $('#aq').oninput=e=>{aFilterQ=e.target.value;renderAllocationsView(main,allocs,projects,partners)};
   main.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>allocationModal(allocs.find(x=>x.id===b.dataset.edit),projects,agree));
@@ -1148,17 +1159,17 @@ function renderAgentAllocations(main,d){
 }
 async function teamAllocModal(t,d){
   const editing=!!t;
-  const projects=[...new Map(d.mine.map(a=>[a.project_id,{id:a.project_id,name:a.project_name}])).values()];
+  const allocs=d.mine||[];
   let members=viewCache['me/team'];
   if(!members){try{members=viewCache['me/team']=await api('me/team')}catch{members=[]}}
   if(!editing&&!members.length)return toast('Add a team member in My Team first.');
-  if(!editing&&!projects.length)return toast('You have no project allocations to assign yet.');
+  if(!editing&&!allocs.length)return toast('You have no project allocations to assign yet.');
   const ov=modal(`
     <h2>${editing?'Edit team allocation':'Assign project to team member'}</h2>
-    <p>${editing?'Update the target, progress, status or note.':'Pick one of your projects, a team member and a category — one allocation per member per category.'}</p>
-    <div class="field"><label>Project</label><select id="taProject" ${editing?'disabled':''}><option value="">Select project…</option>${projects.map(p=>`<option value="${p.id}" ${t?.project_id===p.id?'selected':''}>${esc(p.name)}</option>`).join('')}</select></div>
+    <p>${editing?'Update the target, progress, status or note.':'Pick one of your project allocations — its category is carried to the team member automatically.'}</p>
+    <div class="field"><label>Your project allocation</label><select id="taAlloc" ${editing?'disabled':''}><option value="">Select project allocation…</option>${allocs.map(a=>`<option value="${a.id}" ${t&&t.project_id===a.project_id&&t.category===a.category?'selected':''}>${esc(a.project_name)} · ${catLabel(a.category)}</option>`).join('')}</select></div>
+    <div class="field"><label>Category <small>(locked — comes from the selected allocation)</small></label><input id="taCatLock" readonly value="${t?catLabel(t.category):'—'}"></div>
     <div class="field"><label>Team member</label><select id="taMember" ${editing?'disabled':''}><option value="">Select member…</option>${members.map(m=>`<option value="${m.id}" ${t?.team_member_id===m.id?'selected':''}>${esc(m.name)} · #${esc(m.code)} · ${TEAM_TYPE_LABELS[m.type]||m.type}</option>`).join('')}</select></div>
-    <div class="field"><label>Category <small>(what the target counts)</small></label><select id="taCategory" ${editing?'disabled':''}>${CATEGORIES.map(c=>`<option value="${c}" ${t?.category===c?'selected':''}>${catLabel(c)}</option>`).join('')}</select></div>
     <div class="field-row">
       <div class="field"><label>Assigned target</label><input id="taTarget" type="number" min="0" value="${num(t?.assigned_target)}"></div>
       ${editing?'<div class="field"><label>Acquired (progress)</label><input id="taAcquired" type="number" min="0" value="'+num(t?.acquired_users)+'"></div>':''}
@@ -1166,13 +1177,17 @@ async function teamAllocModal(t,d){
     <div class="field"><label>Status</label><select id="taStatus">${Object.entries(ALLOC_STATUS).map(([k,v])=>`<option value="${k}" ${t?.status===k?'selected':''}>${v[0]}</option>`).join('')}</select></div>
     <div class="field"><label>Note</label><input id="taNote" value="${esc(t?.note||'')}"></div>
     <div class="modal-actions"><button class="btn" data-close>Cancel</button><button class="btn dark" id="taSave">${editing?'Save changes':'Assign allocation'}</button></div>`);
+  const allocSel=ov.querySelector('#taAlloc');
+  const syncCat=()=>{const sel=allocs.find(a=>a.id===allocSel.value);ov.querySelector('#taCatLock').value=sel?catLabel(sel.category):'—'};
+  if(allocSel){allocSel.onchange=syncCat;if(!editing)syncCat()}
   ov.querySelector('#taSave').onclick=async()=>{
+    if(!editing&&!allocSel.value)return toast('Select your project allocation.');
     const payload={assigned_target:Math.round(num(ov.querySelector('#taTarget').value)),status:ov.querySelector('#taStatus').value,note:ov.querySelector('#taNote').value};
     if(editing)payload.acquired_users=Math.round(num(ov.querySelector('#taAcquired').value));
     const btn=ov.querySelector('#taSave');btn.disabled=true;btn.textContent='Saving…';
     try{
       if(editing)await mutate('me/team-allocations/'+t.id,{method:'PATCH',body:JSON.stringify(payload)});
-      else await mutate('me/team-allocations',{method:'POST',body:JSON.stringify({project_id:ov.querySelector('#taProject').value,team_member_id:ov.querySelector('#taMember').value,category:ov.querySelector('#taCategory').value,...payload})});
+      else await mutate('me/team-allocations',{method:'POST',body:JSON.stringify({allocation_id:allocSel.value,team_member_id:ov.querySelector('#taMember').value,...payload})});
       ov.remove();toast(editing?'Team allocation updated.':'Project assigned to team member.');renderPartner();
     }catch(e){toast(e.message);btn.disabled=false;btn.textContent=editing?'Save changes':'Assign allocation'}
   };
