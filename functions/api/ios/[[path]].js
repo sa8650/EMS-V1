@@ -316,16 +316,16 @@ export async function onRequest(context){
       }
       if(path==='me/team-allocations'&&method==='POST'){
         let b=await body(request);
-        if(!b.team_member_id||!b.project_id)return fail('Team member and project are required.');
+        if(!b.team_member_id||!b.allocation_id)return fail('Team member and your project allocation are required.');
         if(!ALLOCATION_STATUSES.includes(b.status))return fail('Invalid allocation status.');
-        const category=CATEGORIES.includes(b.category)?b.category:'users';
         let [member]=await db(env,`team_members?id=eq.${b.team_member_id}&partner_id=eq.${s.id}&select=id`);
         if(!member)return fail('Team member not found in your team.',404);
-        let own=await db(env,`allocations?partner_id=eq.${s.id}&project_id=eq.${b.project_id}&select=id`);
-        if(!own.length)return fail('You have no allocation on this project yet, so you cannot assign it to a team member.',400);
-        let dup=await db(env,`team_allocations?partner_id=eq.${s.id}&team_member_id=eq.${b.team_member_id}&project_id=eq.${b.project_id}&category=eq.${category}&select=id`);
+        let [ownAlloc]=await db(env,`allocations?id=eq.${b.allocation_id}&partner_id=eq.${s.id}&select=id,project_id,category`);
+        if(!ownAlloc)return fail('Project allocation not found among your allocations.',404);
+        const category=ownAlloc.category||'users';
+        let dup=await db(env,`team_allocations?partner_id=eq.${s.id}&team_member_id=eq.${b.team_member_id}&project_id=eq.${ownAlloc.project_id}&category=eq.${category}&select=id`);
         if(dup.length)return fail('This team member already has this project with the “'+category+'” category.',409);
-        const [out]=await db(env,'team_allocations',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({partner_id:s.id,team_member_id:b.team_member_id,project_id:b.project_id,category,assigned_target:Math.max(0,Math.round(num(b.assigned_target))),acquired_users:0,note:b.note?String(b.note).slice(0,500):null,status:b.status})});
+        const [out]=await db(env,'team_allocations',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({partner_id:s.id,team_member_id:b.team_member_id,project_id:ownAlloc.project_id,category,assigned_target:Math.max(0,Math.round(num(b.assigned_target))),acquired_users:0,note:b.note?String(b.note).slice(0,500):null,status:b.status})});
         return json(out,201);
       }
       if(path.startsWith('me/team-allocations/')&&(method==='PATCH'||method==='DELETE')){
@@ -564,6 +564,15 @@ export async function onRequest(context){
       return json(rows.map((r,i)=>({...r,rank:i+1})));
     }
 
+    if(path==='team-allocations'&&method==='GET'){
+      let [rows,partners,members,projects]=await Promise.all([
+        db(env,'team_allocations?select=*&order=created_at.desc&limit=2000'),
+        db(env,'partners?select=id,name,partner_code'),
+        db(env,'team_members?select=id,name,code'),
+        db(env,'projects?select=id,name')]);
+      const sm=Object.fromEntries(partners.map(x=>[x.id,x])),mm=Object.fromEntries(members.map(x=>[x.id,x])),pm=Object.fromEntries(projects.map(x=>[x.id,x.name]));
+      return json(rows.map(t=>({...t,partner_name:sm[t.partner_id]?.name||'—',partner_code:sm[t.partner_id]?.partner_code||'',member_name:mm[t.team_member_id]?.name||'—',member_code:mm[t.team_member_id]?.code||'',project_name:pm[t.project_id]||'—'})));
+    }
     if(path==='contributions'&&method==='GET'){
       let [rows,partners,projects,allocs,files]=await Promise.all([
         db(env,'contributions?select=*&order=created_at.desc&limit=1000'),
