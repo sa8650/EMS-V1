@@ -810,7 +810,7 @@ function aSettings(main){
 let pView='profile';
 function partnerApp(){
   document.title='InfluencerOS — Agent';
-  const nav=[['profile','◉','Profile'],['team','☰','My Team'],['contribute','⇧','Contribute'],['projects','◆','Projects'],['payments','$','Payments'],['performance','◫','Performance'],['helpdesk','✉','HelpDesk <span class="navbadge" id="hdBadge" style="display:none"></span>']];
+  const nav=[['profile','◉','Profile'],['team','☰','My Team'],['allocations','◌','Allocations'],['contribute','⇧','Contribute'],['projects','◆','Projects'],['payments','$','Payments'],['performance','◫','Performance'],['helpdesk','✉','HelpDesk <span class="navbadge" id="hdBadge" style="display:none"></span>']];
   app.innerHTML=`<div class="app">
     <aside class="sidebar">
       <div class="logo">Influence<span>OS</span><small>agent portal · DoxTox</small></div>
@@ -831,6 +831,7 @@ async function renderPartner(){
     if(pView==='profile')return await pProfile(main);
     clearInterval(hdPoll);
     if(pView==='team')return await pTeam(main);
+    if(pView==='allocations')return await pAllocations(main);
     if(pView==='contribute')return await pContribute(main);
     if(pView==='helpdesk')return await pHelpdesk(main);
     if(pView==='projects')return await pOverview(main,'projects');
@@ -1104,7 +1105,81 @@ function paymentMethodModal(existing,paint){
   };
 }
 
-/* ---------- PARTNER: CONTRIBUTE ---------- */
+/* ---------- AGENT: ALLOCATIONS ---------- */
+async function pAllocations(main){
+  if(viewCache['me/allocations'])renderAgentAllocations(main,viewCache['me/allocations']);else main.innerHTML='<p class="muted">Loading…</p>';
+  const d=await api('me/allocations');viewCache['me/allocations']=d;
+  if(!typing(main))renderAgentAllocations(main,d);
+}
+function renderAgentAllocations(main,d){
+  main.innerHTML=`
+  <div class="top"><div class="title"><h1>Allocations</h1><p>Targets the admin assigned to you — and how you assign them to your own team.</p></div>
+  <div class="actions"><button class="btn dark" id="addTeamAlloc">+ Assign to team member</button></div></div>
+
+  <div class="section-box" style="margin-top:0"><div class="toolbar"><h2>My allocations</h2><span class="muted">From the administrator — read only</span></div>
+  <div style="overflow:auto"><table class="view-table"><thead><tr><th>Project</th><th>Category</th><th>Assigned target</th><th>Acquired <small>(auto)</small></th><th>Commission <small>(auto)</small></th><th>Status</th></tr></thead>
+  <tbody>${d.mine.length?d.mine.map(a=>`<tr>
+    <td>${esc(a.project_name)}</td>
+    <td><span class="pill blue">${catLabel(a.category)}</span></td>
+    <td>${num(a.assigned_target).toLocaleString()}</td>
+    <td><b>${num(a.acquired_users).toLocaleString()}</b></td>
+    <td>${money(a.commission)}</td>
+    <td>${pill(ALLOC_STATUS,a.status)}</td>
+  </tr>`).join(''):'<tr><td colspan="6" class="empty">The admin has not allocated any project to you yet.</td></tr>'}</tbody></table></div></div>
+
+  <div class="section-box"><div class="toolbar"><h2>Team allocations</h2><span class="muted">${d.team.length} assigned to your team</span></div>
+  <div style="overflow:auto"><table class="view-table"><thead><tr><th>Project</th><th>Category</th><th>Team member</th><th>Assigned target</th><th>Acquired</th><th>Note</th><th>Status</th><th></th></tr></thead>
+  <tbody>${d.team.length?d.team.map(t=>`<tr>
+    <td>${esc(t.project_name)}</td>
+    <td><span class="pill blue">${catLabel(t.category)}</span></td>
+    <td><div class="partner"><div class="avatar">${esc(initials(t.member_name))}</div><div><b>${esc(t.member_name)}</b><small>#${esc(t.member_code)}</small></div></div></td>
+    <td>${num(t.assigned_target).toLocaleString()}</td>
+    <td><b>${num(t.acquired_users).toLocaleString()}</b></td>
+    <td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(t.note||'')}">${esc(t.note||'—')}</td>
+    <td>${pill(ALLOC_STATUS,t.status)}</td>
+    <td class="actions-cell"><button class="btn small" data-ta-edit="${t.id}">Edit</button><button class="btn small danger" data-ta-del="${t.id}">×</button></td>
+  </tr>`).join(''):'<tr><td colspan="8" class="empty">No team allocations yet. Click “+ Assign to team member”.</td></tr>'}</tbody></table></div></div>`;
+  $('#addTeamAlloc').onclick=()=>teamAllocModal(null,d);
+  main.querySelectorAll('[data-ta-edit]').forEach(b=>b.onclick=()=>teamAllocModal(d.team.find(x=>x.id===b.dataset.taEdit),d));
+  main.querySelectorAll('[data-ta-del]').forEach(b=>b.onclick=async()=>{
+    if(!confirm('Delete this team allocation?'))return;
+    try{await mutate('me/team-allocations/'+b.dataset.taDel,{method:'DELETE'});toast('Team allocation deleted.');renderPartner()}catch(e){toast(e.message)}
+  });
+}
+async function teamAllocModal(t,d){
+  const editing=!!t;
+  const projects=[...new Map(d.mine.map(a=>[a.project_id,{id:a.project_id,name:a.project_name}])).values()];
+  let members=viewCache['me/team'];
+  if(!members){try{members=viewCache['me/team']=await api('me/team')}catch{members=[]}}
+  if(!editing&&!members.length)return toast('Add a team member in My Team first.');
+  if(!editing&&!projects.length)return toast('You have no project allocations to assign yet.');
+  const ov=modal(`
+    <h2>${editing?'Edit team allocation':'Assign project to team member'}</h2>
+    <p>${editing?'Update the target, progress, status or note.':'Pick one of your projects, a team member and a category — one allocation per member per category.'}</p>
+    <div class="field"><label>Project</label><select id="taProject" ${editing?'disabled':''}><option value="">Select project…</option>${projects.map(p=>`<option value="${p.id}" ${t?.project_id===p.id?'selected':''}>${esc(p.name)}</option>`).join('')}</select></div>
+    <div class="field"><label>Team member</label><select id="taMember" ${editing?'disabled':''}><option value="">Select member…</option>${members.map(m=>`<option value="${m.id}" ${t?.team_member_id===m.id?'selected':''}>${esc(m.name)} · #${esc(m.code)} · ${TEAM_TYPE_LABELS[m.type]||m.type}</option>`).join('')}</select></div>
+    <div class="field"><label>Category <small>(what the target counts)</small></label><select id="taCategory" ${editing?'disabled':''}>${CATEGORIES.map(c=>`<option value="${c}" ${t?.category===c?'selected':''}>${catLabel(c)}</option>`).join('')}</select></div>
+    <div class="field-row">
+      <div class="field"><label>Assigned target</label><input id="taTarget" type="number" min="0" value="${num(t?.assigned_target)}"></div>
+      ${editing?'<div class="field"><label>Acquired (progress)</label><input id="taAcquired" type="number" min="0" value="'+num(t?.acquired_users)+'"></div>':''}
+    </div>
+    <div class="field"><label>Status</label><select id="taStatus">${Object.entries(ALLOC_STATUS).map(([k,v])=>`<option value="${k}" ${t?.status===k?'selected':''}>${v[0]}</option>`).join('')}</select></div>
+    <div class="field"><label>Note</label><input id="taNote" value="${esc(t?.note||'')}"></div>
+    <div class="modal-actions"><button class="btn" data-close>Cancel</button><button class="btn dark" id="taSave">${editing?'Save changes':'Assign allocation'}</button></div>`);
+  ov.querySelector('#taSave').onclick=async()=>{
+    const payload={assigned_target:Math.round(num(ov.querySelector('#taTarget').value)),status:ov.querySelector('#taStatus').value,note:ov.querySelector('#taNote').value};
+    if(editing)payload.acquired_users=Math.round(num(ov.querySelector('#taAcquired').value));
+    const btn=ov.querySelector('#taSave');btn.disabled=true;btn.textContent='Saving…';
+    try{
+      if(editing)await mutate('me/team-allocations/'+t.id,{method:'PATCH',body:JSON.stringify(payload)});
+      else await mutate('me/team-allocations',{method:'POST',body:JSON.stringify({project_id:ov.querySelector('#taProject').value,team_member_id:ov.querySelector('#taMember').value,category:ov.querySelector('#taCategory').value,...payload})});
+      ov.remove();toast(editing?'Team allocation updated.':'Project assigned to team member.');renderPartner();
+    }catch(e){toast(e.message);btn.disabled=false;btn.textContent=editing?'Save changes':'Assign allocation'}
+  };
+}
+
+/* ---------- AGENT: CONTRIBUTE ---------- */
+
 async function pContribute(main){
   if(viewCache['contributions/mine'])renderPContribute(main,viewCache['contributions/mine']);else main.innerHTML='<p class="muted">Loading…</p>';
   const [rows,ov]=await Promise.all([api('contributions/mine'),api('me/overview')]);
