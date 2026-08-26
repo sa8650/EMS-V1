@@ -52,7 +52,7 @@ function filesModal(files){
 }
 function toast(m){let e=$('#toast');e.textContent=m;e.classList.add('show');clearTimeout(e._t);e._t=setTimeout(()=>e.classList.remove('show'),3200)}
 
-const TYPE_LABELS={youtuber:'YouTuber',facebook:'Facebook',tiktoker:'TikToker',instagram:'Instagram',marketing_agent:'Marketing Agent',agency:'Agency'};
+const TYPE_LABELS={youtuber:'YouTuber',facebook:'Facebook',tiktoker:'TikToker',instagram:'Instagram',telegram:'Telegram',marketing_agent:'Marketing Agent',agency:'Agency'};
 const PARTNER_STATUS={disagree:['Disagree','red'],agree:['Agree','green'],not_response:['Not Response','yellow'],waiting:['Waiting','blue']};
 const ALLOC_STATUS={on_target:['On Target','green'],active:['Active','blue'],behind:['Behind','red'],inactive:['Inactive','gray']};
 const PAY_STATUS={scheduled:['Scheduled','blue'],paid:['Paid','green'],pending:['Pending','yellow']};
@@ -165,9 +165,10 @@ async function loginModal(){
       <button class="btn dark" id="mAdmin" style="padding:16px">▦ &nbsp;Admin login</button>
       <button class="btn" id="mAgent" style="padding:16px">◎ &nbsp;Agent login</button>
     </div>
-    <p class="form-note" style="margin-top:14px">Agents can sign in with their 4-digit Agent ID or registered email.</p>`);
+    <p class="form-note" style="margin-top:14px">Agents can sign in with their 4-digit Agent ID or registered email.<br>New here? <a href="#" id="mRegister" style="color:#111;font-weight:600">Create an agent account</a></p>`);
   ov.querySelector('#mAdmin').onclick=()=>{ov.remove();adminLoginModal()};
   ov.querySelector('#mAgent').onclick=()=>{ov.remove();agentLoginModal()};
+  ov.querySelector('#mRegister').onclick=e=>{e.preventDefault();ov.remove();agentRegisterModal()};
 }
 async function adminLoginModal(){
   let hasAdmin=true;try{hasAdmin=(await api('auth/status')).hasAdmin}catch{}
@@ -186,6 +187,33 @@ async function adminLoginModal(){
       const r=await api(register?'auth/admin/register':'auth/admin/login',{method:'POST',body:JSON.stringify(payload)});
       save({token:r.token,role:'admin',user:r.user});ov.remove();boot();
     }catch(e){toast(e.message)}
+  };
+}
+function agentRegisterModal(){
+  const ov=modal(`
+    <h2>Create agent account</h2>
+    <p>Register as a marketing agent — your account starts in “Waiting” status until the administrator approves it (status Agree) for allocations.</p>
+    <div class="field-row">
+      <div class="field"><label>Name</label><input id="rName" placeholder="Your full name"></div>
+      <div class="field"><label>Email</label><input id="rEmail" type="email" placeholder="you@email.com"></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Phone number</label><input id="rPhone" placeholder="+880…"></div>
+      <div class="field"><label>Type</label><select id="rType">${Object.entries(TYPE_LABELS).map(([k,v])=>`<option value="${k}">${v}</option>`).join('')}</select></div>
+    </div>
+    <div class="field"><label>Address</label><input id="rAddress" placeholder="Street, city"></div>
+    <div class="field"><label>Password</label><input id="rPass" type="password" placeholder="Minimum 6 characters"></div>
+    <div class="modal-actions"><button class="btn" data-close>Cancel</button><button class="btn dark" id="rGo">Create account</button></div>`);
+  ov.querySelector('#rGo').onclick=async()=>{
+    const btn=ov.querySelector('#rGo');
+    try{
+      btn.disabled=true;btn.textContent='Creating…';
+      const r=await api('auth/partner/register',{method:'POST',body:JSON.stringify({name:ov.querySelector('#rName').value,email:ov.querySelector('#rEmail').value,phone:ov.querySelector('#rPhone').value,type:ov.querySelector('#rType').value,address:ov.querySelector('#rAddress').value,password:ov.querySelector('#rPass').value})});
+      save({token:r.token,role:'partner',user:r.user});
+      ov.remove();
+      modal(`<h2>Welcome, ${esc(r.user.name)}!</h2><p>Your agent account was created. Save your Agent ID — you can sign in with it or your email.</p><div class="kv"><span>Agent ID</span><b style="font-size:20px">${esc(r.user.partner_code)}</b><span>Status</span><b>Waiting for administrator approval</b></div><div class="modal-actions"><button class="btn dark" data-close>Enter my portal</button></div>`);
+      boot();
+    }catch(e){toast(e.message);btn.disabled=false;btn.textContent='Create account'}
   };
 }
 function agentLoginModal(){
@@ -331,8 +359,9 @@ function partnerModal(p,all){
     </div>
     <div class="field-row">
       <div class="field"><label>Phone number</label><input id="fPhone" value="${esc(p?.phone||'')}" placeholder="+880…"></div>
-      <div class="field"><label>Agent type</label><select id="fType">${Object.entries(TYPE_LABELS).map(([k,v])=>`<option value="${k}" ${p?.type===k?'selected':''}>${v}</option>`).join('')}</select></div>
+      <div class="field"><label>Type</label><select id="fType">${Object.entries(TYPE_LABELS).map(([k,v])=>`<option value="${k}" ${p?.type===k?'selected':''}>${v}</option>`).join('')}</select></div>
     </div>
+    <div class="field"><label>Address</label><input id="fAddress" value="${esc(p?.address||'')}" placeholder="Street, city"></div>
     <div class="field"><label>Social / account information <small>(up to 5)</small></label><div id="acctBox"></div>
       <button class="btn small" id="addAcct" type="button">+ Add URL</button></div>
     <div class="field"><label>Password ${p?'<small>(leave blank to keep current)</small>':''}</label><input id="fPass" type="password" placeholder="Minimum 6 characters"></div>
@@ -356,7 +385,7 @@ function partnerModal(p,all){
   ov.querySelector('#fSave').onclick=async()=>{
     const accountsList=[...box.querySelectorAll('.acct-row')].map(r=>({label:r.children[0].value,url:r.children[1].value})).filter(a=>a.label.trim()||a.url.trim());
     const payload={name:ov.querySelector('#fName').value,email:ov.querySelector('#fEmail').value,phone:ov.querySelector('#fPhone').value,
-      type:ov.querySelector('#fType').value,accounts:accountsList,password:ov.querySelector('#fPass').value||undefined,
+      type:ov.querySelector('#fType').value,address:ov.querySelector('#fAddress').value,accounts:accountsList,password:ov.querySelector('#fPass').value||undefined,
       login_access:ov.querySelector('#fAccess').value==='yes',status:ov.querySelector('#fStatus').value,note:ov.querySelector('#fNote').value};
     try{
       if(p){await mutate('partners/'+p.id,{method:'PATCH',body:JSON.stringify(payload)});toast('Agent updated.')}
@@ -512,6 +541,7 @@ function paymentModal(partners,allocations,payments){
       <span>Name</span><b>${esc(p.name)}</b>
       <span>Email</span><b>${esc(p.email)}</b>
       <span>Phone</span><b>${esc(p.phone||'—')}</b>
+      <span>Address</span><b>${esc(p.address||'—')}</b>
       <span>Type</span><b>${TYPE_LABELS[p.type]||p.type}</b>
       <span>Status</span><b>${pill(PARTNER_STATUS,p.status)}</b>
       <span>Balance</span><b>${money(p.balance)}</b>
@@ -671,6 +701,7 @@ function partnerViewModal(p){
       <span>Name</span><b>${esc(me.name)}</b>
       <span>Email</span><b>${esc(me.email)}</b>
       <span>Phone</span><b>${esc(me.phone||'—')}</b>
+      <span>Address</span><b>${esc(me.address||'—')}</b>
       <span>Type</span><b>${TYPE_LABELS[me.type]||me.type}</b>
       <span>Status</span><b>${pill(PARTNER_STATUS,me.status)}</b>
       <span>Login access</span><b>${me.login_access?'Enabled':'Disabled'}</b>
@@ -864,7 +895,8 @@ function renderPProfile(main,me){
     <div class="kv" style="margin-top:14px">
       <span>Email</span><b>${esc(me.email)}</b>
       <span>Phone number</span><b>${esc(me.phone||'—')}</b>
-      <span>Partner type</span><b>${TYPE_LABELS[me.type]||me.type}</b>
+      <span>Address</span><b>${esc(me.address||'—')}</b>
+      <span>Type</span><b>${TYPE_LABELS[me.type]||me.type}</b>
       <span>Password</span><b>••••••••</b>
     </div>
     <div class="section-head" style="margin-top:18px"><h2>Social accounts</h2></div>
@@ -899,6 +931,7 @@ function renderPProfile(main,me){
       <div class="field"><label>Email</label><input id="sEmail" type="email" value="${esc(me.email)}"></div>
     </div>
     <div class="field"><label>Phone number</label><input id="sPhone" value="${esc(me.phone||'')}"></div>
+    <div class="field"><label>Address</label><input id="sAddress" value="${esc(me.address||'')}" placeholder="Street, city"></div>
     <div class="field"><label>Social / account information <small>(up to 5)</small></label><div id="sAcctBox"></div>
       <button class="btn small" id="sAddAcct" type="button">+ Add URL</button></div>
     <div class="field"><label>Password <small>(leave blank to keep current)</small></label><input id="sPass" type="password" placeholder="Minimum 6 characters"></div>
@@ -915,7 +948,7 @@ function renderPProfile(main,me){
     ov.querySelector('#sGo').onclick=async()=>{
       const accountsList=[...box.querySelectorAll('.acct-row')].map(r=>({label:r.children[0].value,url:r.children[1].value})).filter(a=>a.label.trim()||a.url.trim());
       try{
-        await mutate('me/profile',{method:'POST',body:JSON.stringify({name:ov.querySelector('#sName').value,email:ov.querySelector('#sEmail').value,phone:ov.querySelector('#sPhone').value,accounts:accountsList,password:ov.querySelector('#sPass').value||undefined})});
+        await mutate('me/profile',{method:'POST',body:JSON.stringify({name:ov.querySelector('#sName').value,email:ov.querySelector('#sEmail').value,phone:ov.querySelector('#sPhone').value,address:ov.querySelector('#sAddress').value,accounts:accountsList,password:ov.querySelector('#sPass').value||undefined})});
         ov.remove();toast('Profile updated.');renderPartner();
       }catch(e){toast(e.message)}
     };
